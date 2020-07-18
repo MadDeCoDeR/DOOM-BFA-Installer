@@ -3,59 +3,120 @@ using System;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using DBFAInstaller.utils;
+using System.Threading.Tasks;
 
 namespace DBFAInstaller.installer
 {
     class Installer
     {
-        public static void install(GameType gameType, CPUArch cpuArch, string path)
+        public static int percentage { get; set; }
+        public static int total { get; set; }
+        public static async Task<bool> install(GameType gameType, CPUArch cpuArch, string path, ProgressBar progressBar)
         {
-            bool removeSettings = Boolean.Parse(Properties.Resources.RemoveSettings);
-            if (removeSettings)
-            {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                {
-                    Win32SettingsRemover.removeSettings();
-                }
-                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                {
-                    UnixSettingsRemover.removeSettings();
-                }
-                else
-                {
-                    MessageBox.Show("Unsupported Operating System");
-                }
-            }
+            Task<bool> installTask = installTaskImpl(gameType, cpuArch, path, progressBar);
+            await Task.WhenAny(installTask);
 
-            switch (cpuArch) {
+            return installTask.Result;
+        }
+
+        private static async Task<bool> installTaskImpl(GameType gameType, CPUArch cpuArch, string path, ProgressBar progressBar)
+        {
+            await Task.Run(() =>
+            {
+                bool removeSettings = Boolean.Parse(Properties.Resources.RemoveSettings);
+                if (removeSettings)
+                {
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                    {
+                        Win32SettingsRemover.removeSettings();
+                    }
+                    else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                    {
+                        UnixSettingsRemover.removeSettings();
+                    }
+                    else
+                    {
+                        MessageBox.Show("Unsupported Operating System");
+                    }
+                }
+
+                countFiles(gameType, cpuArch);
+
+                progressBar.Invoke(new Action(() =>
+                {
+                    progressBar.Maximum = total;
+                }));
+
+                switch (cpuArch)
+                {
+                    case CPUArch.x64:
+                        {
+                            ZipManager.extractFiles(Properties.Resources.x64, path, progressBar);
+                            break;
+                        }
+                    case CPUArch.x86:
+                        {
+                            ZipManager.extractFiles(Properties.Resources.x86, path, progressBar);
+                            break;
+                        }
+                }
+
+                switch (gameType)
+                {
+                    case GameType.BFG:
+                        {
+                            ZipManager.extractFiles(Properties.Resources._base, path + "/base", progressBar);
+                            ZipManager.extractFiles(Properties.Resources.base_BFG, path + "/base", progressBar);
+                            break;
+                        }
+                    case GameType.NEW:
+                        {
+                            ZipManager.extractFiles(Properties.Resources._base, path + "/base", progressBar);
+                            break;
+                        }
+                    case GameType.CLASSIC:
+                        {
+                            ZipManager.extractFiles(Properties.Resources.base_CLASSIC, path, progressBar);
+                            break;
+                        }
+                }
+            });
+
+            return true;
+        }
+
+        private static void countFiles(GameType gameType, CPUArch cpuArch)
+        {
+            switch (cpuArch)
+            {
                 case CPUArch.x64:
                     {
-                        ZipManager.extractFiles(Properties.Resources.x64, path);
+                        total += ZipManager.countFiles(Properties.Resources.x64);
                         break;
                     }
                 case CPUArch.x86:
                     {
-                        ZipManager.extractFiles(Properties.Resources.x86, path);
+                        total += ZipManager.countFiles(Properties.Resources.x86);
                         break;
                     }
             }
 
-            switch(gameType)
+            switch (gameType)
             {
                 case GameType.BFG:
                     {
-                        ZipManager.extractFiles(Properties.Resources._base, path + "/base");
-                        ZipManager.extractFiles(Properties.Resources.base_BFG, path + "/base");
+                        total += ZipManager.countFiles(Properties.Resources._base);
+                        total += ZipManager.countFiles(Properties.Resources.base_BFG);
                         break;
                     }
                 case GameType.NEW:
                     {
-                        ZipManager.extractFiles(Properties.Resources._base, path + "/base");
+                        total += ZipManager.countFiles(Properties.Resources._base);
                         break;
                     }
                 case GameType.CLASSIC:
                     {
-                        ZipManager.extractFiles(Properties.Resources.base_CLASSIC, path);
+                        total += ZipManager.countFiles(Properties.Resources.base_CLASSIC);
                         break;
                     }
             }

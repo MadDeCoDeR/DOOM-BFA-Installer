@@ -51,7 +51,12 @@ namespace DBFAInstaller
             }
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private async void button1_Click(object sender, EventArgs e)
+        {
+            changePanel();
+        }
+
+        private async void changePanel()
         {
             bool nextMove = true;
             if (index == 3)
@@ -67,16 +72,16 @@ namespace DBFAInstaller
                 updateButtons();
                 if (index > 0)
                 {
-                    if (index == 2)
-                    {
-                        installer.Installer.install(gameType, cpuArch, textBox1.Text);
-                        index--;
-                        updateButtons();
-                    }
                     string newName = "panel" + this.index;
                     Panel newPanel = (Panel)this.Controls.Find(newName, true)[0];
                     newPanel.Visible = true;
-                    
+                    updateButtons();
+                    if (index == 2)
+                    {
+                        await installer.Installer.install(gameType, cpuArch, textBox1.Text, progressBar1);
+                        changePanel();
+                    }
+
                 }
                 else
                 {
