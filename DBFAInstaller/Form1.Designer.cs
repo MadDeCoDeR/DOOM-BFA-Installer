@@ -84,7 +84,7 @@
             // 
             this.panel2.Controls.Add(this.progressBar1);
             this.panel2.Controls.Add(this.label2);
-            this.panel2.Location = new System.Drawing.Point(13, 10);
+            this.panel2.Location = new System.Drawing.Point(13, 13);
             this.panel2.Name = "panel2";
             this.panel2.Size = new System.Drawing.Size(559, 317);
             this.panel2.TabIndex = 1;
@@ -108,31 +108,37 @@
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(497, 336);
+            this.button1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.button1.Location = new System.Drawing.Point(497, 346);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(75, 23);
-            this.button1.TabIndex = 1;
+            this.button1.TabIndex = 0;
             this.button1.Text = "button1";
+            this.button1.UseCompatibleTextRendering = true;
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.button1_Click);
             // 
             // button2
             // 
-            this.button2.Location = new System.Drawing.Point(416, 336);
+            this.button2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.button2.Location = new System.Drawing.Point(416, 346);
             this.button2.Name = "button2";
             this.button2.Size = new System.Drawing.Size(75, 23);
-            this.button2.TabIndex = 2;
+            this.button2.TabIndex = 0;
             this.button2.Text = "button2";
+            this.button2.UseCompatibleTextRendering = true;
             this.button2.UseVisualStyleBackColor = true;
             this.button2.Click += new System.EventHandler(this.button2_Click);
             // 
             // button3
             // 
-            this.button3.Location = new System.Drawing.Point(335, 337);
+            this.button3.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.button3.Location = new System.Drawing.Point(335, 346);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(75, 23);
-            this.button3.TabIndex = 3;
+            this.button3.TabIndex = 0;
             this.button3.Text = "button3";
+            this.button3.UseCompatibleTextRendering = true;
             this.button3.UseVisualStyleBackColor = true;
             this.button3.Click += new System.EventHandler(this.button3_Click);
             // 
@@ -141,9 +147,9 @@
             this.panel3.Controls.Add(this.label7);
             this.panel3.Controls.Add(this.button4);
             this.panel3.Controls.Add(this.textBox1);
-            this.panel3.Location = new System.Drawing.Point(12, 10);
+            this.panel3.Location = new System.Drawing.Point(13, 13);
             this.panel3.Name = "panel3";
-            this.panel3.Size = new System.Drawing.Size(556, 314);
+            this.panel3.Size = new System.Drawing.Size(559, 317);
             this.panel3.TabIndex = 4;
             this.panel3.Visible = false;
             // 
@@ -180,7 +186,7 @@
             this.panel4.Controls.Add(this.label5);
             this.panel4.Controls.Add(this.label4);
             this.panel4.Controls.Add(this.label3);
-            this.panel4.Location = new System.Drawing.Point(9, 10);
+            this.panel4.Location = new System.Drawing.Point(13, 13);
             this.panel4.Name = "panel4";
             this.panel4.Size = new System.Drawing.Size(559, 317);
             this.panel4.TabIndex = 2;
@@ -219,6 +225,7 @@
             this.radioButton4.TabStop = true;
             this.radioButton4.Text = "x86";
             this.radioButton4.UseVisualStyleBackColor = true;
+            this.radioButton4.Visible = false;
             this.radioButton4.CheckedChanged += new System.EventHandler(this.radioButton4_CheckedChanged);
             this.radioButton4.MouseLeave += new System.EventHandler(this.clearText);
             this.radioButton4.MouseHover += new System.EventHandler(this.radioButton4_MouseHover);
@@ -305,9 +312,9 @@
             // 
             this.panel5.CausesValidation = false;
             this.panel5.Controls.Add(this.label6);
-            this.panel5.Location = new System.Drawing.Point(6, 7);
+            this.panel5.Location = new System.Drawing.Point(13, 13);
             this.panel5.Name = "panel5";
-            this.panel5.Size = new System.Drawing.Size(559, 324);
+            this.panel5.Size = new System.Drawing.Size(559, 317);
             this.panel5.TabIndex = 8;
             // 
             // label6
@@ -324,10 +331,10 @@
             // 
             // Form1
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.ClientSize = new System.Drawing.Size(584, 375);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            this.AutoSize = true;
+            this.ClientSize = new System.Drawing.Size(584, 381);
             this.ControlBox = false;
             this.Controls.Add(this.button3);
             this.Controls.Add(this.button2);
