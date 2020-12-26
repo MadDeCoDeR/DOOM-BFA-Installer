@@ -54,11 +54,11 @@ namespace DBFAInstaller.installer
                             ZipManager.extractFiles(Properties.Resources.x64, path, progressBar);
                             break;
                         }
-                    case CPUArch.x86:
+                    /*case CPUArch.x86:
                         {
                             ZipManager.extractFiles(Properties.Resources.x86, path, progressBar);
                             break;
-                        }
+                        }*/
                 }
 
                 switch (gameType)
@@ -72,6 +72,7 @@ namespace DBFAInstaller.installer
                     case GameType.NEW:
                         {
                             ZipManager.extractFiles(Properties.Resources._base, path + "/base", progressBar);
+                            ZipManager.extractFiles(Properties.Resources.base_NEW, path + "/base", progressBar);
                             break;
                         }
                     case GameType.CLASSIC:
@@ -94,11 +95,11 @@ namespace DBFAInstaller.installer
                         total += ZipManager.countFiles(Properties.Resources.x64);
                         break;
                     }
-                case CPUArch.x86:
+                /*case CPUArch.x86:
                     {
                         total += ZipManager.countFiles(Properties.Resources.x86);
                         break;
-                    }
+                    }*/
             }
 
             switch (gameType)
@@ -112,6 +113,7 @@ namespace DBFAInstaller.installer
                 case GameType.NEW:
                     {
                         total += ZipManager.countFiles(Properties.Resources._base);
+                        total += ZipManager.countFiles(Properties.Resources.base_NEW);
                         break;
                     }
                 case GameType.CLASSIC:

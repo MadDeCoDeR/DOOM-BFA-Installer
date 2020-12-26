@@ -91,7 +91,17 @@ namespace DBFAInstaller.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to true.
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
+        internal static byte[] base_NEW {
+            get {
+                object obj = ResourceManager.GetObject("base_NEW", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to false.
         /// </summary>
         internal static string RemoveSettings {
             get {
@@ -105,16 +115,6 @@ namespace DBFAInstaller.Properties {
         internal static byte[] x64 {
             get {
                 object obj = ResourceManager.GetObject("x64", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] x86 {
-            get {
-                object obj = ResourceManager.GetObject("x86", resourceCulture);
                 return ((byte[])(obj));
             }
         }
