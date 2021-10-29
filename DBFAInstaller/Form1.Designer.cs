@@ -200,6 +200,7 @@
             this.panel7.Name = "panel7";
             this.panel7.Size = new System.Drawing.Size(89, 100);
             this.panel7.TabIndex = 9;
+            this.panel7.Visible = false;
             // 
             // radioButton5
             // 
@@ -211,6 +212,7 @@
             this.radioButton5.TabStop = true;
             this.radioButton5.Text = "x64";
             this.radioButton5.UseVisualStyleBackColor = true;
+            this.radioButton5.Visible = false;
             this.radioButton5.CheckedChanged += new System.EventHandler(this.radioButton5_CheckedChanged);
             this.radioButton5.MouseLeave += new System.EventHandler(this.clearText);
             this.radioButton5.MouseHover += new System.EventHandler(this.radioButton5_MouseHover);
@@ -290,6 +292,7 @@
             this.label5.Size = new System.Drawing.Size(89, 13);
             this.label5.TabIndex = 7;
             this.label5.Text = "CPU Architecture";
+            this.label5.Visible = false;
             // 
             // label4
             // 
