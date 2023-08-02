@@ -10,8 +10,12 @@ namespace DBFAInstaller.utils
 {
     class ZipManager
     {
-        public static void extractFiles(byte[] data, string path, ProgressBar progressBar)
+        public static void extractFiles(byte[] data, string path, ProgressBar progressBar, Label label)
         {
+            label.Invoke(new Action(() =>
+            {
+                label.Text = "Extracting";
+            }));
             Stream zip = new MemoryStream(data);
             using (ZipArchive zipFile = new ZipArchive(zip))
             {

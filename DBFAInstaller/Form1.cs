@@ -78,7 +78,7 @@ namespace DBFAInstaller
                     updateButtons();
                     if (index == 2)
                     {
-                        await installer.Installer.install(gameType, cpuArch, textBox1.Text, progressBar1);
+                        await installer.Installer.install(gameType, cpuArch, textBox1.Text, progressBar1, label2);
                         changePanel();
                     }
 
@@ -194,18 +194,6 @@ namespace DBFAInstaller
                if ((file.Name == "Doom3BFG.exe" || file.Name == "Doom3.exe") && gameType == GameType.CLASSIC)
                 {
                     MessageBox.Show("Can't install Classic Edition in BFG/2019 installation folder");
-                    return false;
-                }
-
-                if (file.Name == "Doom3BFG.exe" && gameType == GameType.NEW)
-                {
-                    MessageBox.Show("Can't install 2019 Edition in BFG installation folder");
-                    return false;
-                }
-
-                if (file.Name == "Doom3.exe" && gameType == GameType.BFG)
-                {
-                    MessageBox.Show("Can't install BFG Edition in 2019 installation folder");
                     return false;
                 }
             }

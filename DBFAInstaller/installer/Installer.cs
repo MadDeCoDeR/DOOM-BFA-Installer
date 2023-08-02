@@ -11,18 +11,16 @@ namespace DBFAInstaller.installer
     {
         public static int percentage { get; set; }
         public static int total { get; set; }
-        public static async Task<bool> install(GameType gameType, CPUArch cpuArch, string path, ProgressBar progressBar)
+        public static async Task<bool> install(GameType gameType, CPUArch cpuArch, string path, ProgressBar progressBar, Label label)
         {
-            Task<bool> installTask = installTaskImpl(gameType, cpuArch, path, progressBar);
+            Task<bool> installTask = installTaskImpl(gameType, cpuArch, path, progressBar, label);
             await Task.WhenAny(installTask);
 
             return installTask.Result;
         }
 
-        private static async Task<bool> installTaskImpl(GameType gameType, CPUArch cpuArch, string path, ProgressBar progressBar)
+        private static async Task<bool> installTaskImpl(GameType gameType, CPUArch cpuArch, string path, ProgressBar progressBar, Label l)
         {
-            await Task.Run(() =>
-            {
                 bool removeSettings = Boolean.Parse(Properties.Resources.RemoveSettings);
                 if (removeSettings)
                 {
@@ -40,30 +38,23 @@ namespace DBFAInstaller.installer
                     }
                 }
 
-                countFiles(gameType, cpuArch);
+                /*countFiles(gameType, cpuArch);
 
                 progressBar.Invoke(new Action(() =>
                 {
                     progressBar.Maximum = total;
-                }));
+                }));*/
 
-                switch (cpuArch)
-                {
-                    case CPUArch.x64:
-                        {
-                            ZipManager.extractFiles(Properties.Resources.x64, path, progressBar);
-                            break;
-                        }
-                    /*case CPUArch.x86:
-                        {
-                            ZipManager.extractFiles(Properties.Resources.x86, path, progressBar);
-                            break;
-                        }*/
-                }
+                FileRetriever fileRetriever = new FileRetriever();
+
+            if (gameType != GameType.CLASSIC)
+            {
+                return await fileRetriever.GetRemoteBinaries(cpuArch, path, progressBar, l);
+            }
 
                 switch (gameType)
                 {
-                    case GameType.BFG:
+                    /*case GameType.BFG:
                         {
                             ZipManager.extractFiles(Properties.Resources._base, path + "/base", progressBar);
                             ZipManager.extractFiles(Properties.Resources.base_BFG, path + "/base", progressBar);
@@ -74,19 +65,17 @@ namespace DBFAInstaller.installer
                             ZipManager.extractFiles(Properties.Resources._base, path + "/base", progressBar);
                             ZipManager.extractFiles(Properties.Resources.base_NEW, path + "/base", progressBar);
                             break;
-                        }
+                        }*/
                     case GameType.CLASSIC:
                         {
-                            ZipManager.extractFiles(Properties.Resources.base_CLASSIC, path, progressBar);
+                            //ZipManager.extractFiles(Properties.Resources.base_CLASSIC, path, progressBar);
                             break;
                         }
                 }
-            });
-
-            return true;
+            return false;
         }
 
-        private static void countFiles(GameType gameType, CPUArch cpuArch)
+        /*private static void countFiles(GameType gameType, CPUArch cpuArch)
         {
             switch (cpuArch)
             {
@@ -95,11 +84,11 @@ namespace DBFAInstaller.installer
                         total += ZipManager.countFiles(Properties.Resources.x64);
                         break;
                     }
-                /*case CPUArch.x86:
+                *//*case CPUArch.x86:
                     {
                         total += ZipManager.countFiles(Properties.Resources.x86);
                         break;
-                    }*/
+                    }*//*
             }
 
             switch (gameType)
@@ -122,6 +111,6 @@ namespace DBFAInstaller.installer
                         break;
                     }
             }
-        }
+        }*/
     }
 }

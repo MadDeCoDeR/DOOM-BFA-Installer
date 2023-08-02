@@ -19,7 +19,7 @@ namespace DBFAInstaller.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class Resources {
@@ -61,46 +61,6 @@ namespace DBFAInstaller.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] _base {
-            get {
-                object obj = ResourceManager.GetObject("_base", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] base_BFG {
-            get {
-                object obj = ResourceManager.GetObject("base_BFG", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] base_CLASSIC {
-            get {
-                object obj = ResourceManager.GetObject("base_CLASSIC", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
-        /// </summary>
-        internal static byte[] base_NEW {
-            get {
-                object obj = ResourceManager.GetObject("base_NEW", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to false.
         /// </summary>
         internal static string RemoveSettings {
@@ -110,12 +70,11 @@ namespace DBFAInstaller.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized resource of type System.Byte[].
+        ///   Looks up a localized string similar to nightly-2023-07-30-09-26-1690709182.
         /// </summary>
-        internal static byte[] x64 {
+        internal static string Version {
             get {
-                object obj = ResourceManager.GetObject("x64", resourceCulture);
-                return ((byte[])(obj));
+                return ResourceManager.GetString("Version", resourceCulture);
             }
         }
     }
