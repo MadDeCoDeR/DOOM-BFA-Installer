@@ -27,10 +27,10 @@ namespace DBFAInstaller.utils
             switch (arch)
             {
                 case CPUArch.x64:
-                    url += "/windows-RC-retail.zip";
+                    url += "/x64-windows-linux.zip";
                     break;
                 case CPUArch.x86:
-                    url += "/windows-32-bit-RC-retail.zip";
+                    url += "/windows-32-bit.zip";
                     break;
             }
             HttpResponseMessage response = await client.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);

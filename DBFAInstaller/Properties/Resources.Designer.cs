@@ -70,7 +70,7 @@ namespace DBFAInstaller.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to nightly-2023-07-30-09-26-1690709182.
+        ///   Looks up a localized string similar to 1.3.0-BFA.
         /// </summary>
         internal static string Version {
             get {
