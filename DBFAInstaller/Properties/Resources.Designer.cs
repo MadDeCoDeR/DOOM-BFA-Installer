@@ -70,7 +70,7 @@ namespace DBFAInstaller.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to 1.3.0-BFA.
+        ///   Looks up a localized string similar to 1.3.0-BFA-PATCHED.
         /// </summary>
         internal static string Version {
             get {
