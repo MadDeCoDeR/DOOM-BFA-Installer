@@ -3,18 +3,30 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30114.105
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DBFAInstaller", "DBFAInstaller\DBFAInstaller.csproj", "{3425AFE0-9A4E-425B-9156-42432AE81B2C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DBFAUpdater", "DBFAUpdater\DBFAUpdater.csproj", "{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
 		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{3425AFE0-9A4E-425B-9156-42432AE81B2C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{3425AFE0-9A4E-425B-9156-42432AE81B2C}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{3425AFE0-9A4E-425B-9156-42432AE81B2C}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{3425AFE0-9A4E-425B-9156-42432AE81B2C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Debug|x64.Build.0 = Debug|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Debug|x86.Build.0 = Debug|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Release|x64.ActiveCfg = Release|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Release|x64.Build.0 = Release|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Release|x86.ActiveCfg = Release|Any CPU
+		{B8149B1A-37C0-4DB2-BA69-A25D19FCD01D}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

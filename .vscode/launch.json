@@ -1,0 +1,11 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Avalonia: DBFAUpdater",
+            "type": "dotnet",
+            "request": "launch",
+            "projectPath": "${workspaceFolder}/DBFAUpdater/DBFAUpdater.csproj"
+        }
+    ]
+}

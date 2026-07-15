@@ -1,0 +1,106 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:DBFAUpdater"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="350"
+        Width="600" Height="350" CanResize="False" CanMaximize="False"
+        x:Class="DBFAUpdater.MainWindow"
+        Title="DBFAUpdater">
+
+        <Design.DataContext>
+            <vm:FormModel></vm:FormModel>
+        </Design.DataContext>
+
+    <DockPanel>
+        <StackPanel x:DataType="vm:FormModel" Name="Main" DockPanel.Dock="Top" Height="300">
+            <DockPanel Name="Welcome" IsVisible="True">
+                <TextBox BorderThickness="0" DockPanel.Dock="Top" Height="140"></TextBox>
+                <TextBox BorderThickness="0" DockPanel.Dock="Left" Width="150"></TextBox>
+                <TextBox BorderThickness="0" IsReadOnly="True">
+                    Welcome to the DOOM BFA Installer/Updater
+                </TextBox>
+            </DockPanel>
+            <DockPanel Name="Version" IsVisible="False" IsEnabled="False">
+                <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
+                <StackPanel DockPanel.Dock="Left" Width="170"></StackPanel>
+                <StackPanel>
+                <TextBox BorderThickness="0" IsReadOnly="True"> Please select Version</TextBox>
+                <RadioButton IsChecked="{Binding Version,
+                     Converter={StaticResource EnumToBoolConverter},
+                     ConverterParameter={x:Static vm:VersionEnum.Stable}}" GroupName="Version">Latest Stable Release</RadioButton>
+                <RadioButton IsChecked="{Binding Version,
+                     Converter={StaticResource EnumToBoolConverter},
+                     ConverterParameter={x:Static vm:VersionEnum.Beta}}" GroupName="Version">Latest Beta Release</RadioButton>
+                </StackPanel>
+            </DockPanel>
+            <DockPanel Name="Profile" IsVisible="False" IsEnabled="False">
+                <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
+                <StackPanel DockPanel.Dock="Left" Width="90"></StackPanel>
+                <StackPanel>
+                <TextBox BorderThickness="0" IsReadOnly="True"> Please select Release Profile</TextBox>
+                <RadioButton IsChecked="{Binding Profile,
+                     Converter={StaticResource EnumToBoolConverter},
+                     ConverterParameter={x:Static vm:ProfileEnum.Retail}}" GroupName="Profile">Retail (Same as final release with achievement support)</RadioButton>
+                <RadioButton IsChecked="{Binding Profile,
+                     Converter={StaticResource EnumToBoolConverter},
+                     ConverterParameter={x:Static vm:ProfileEnum.Debug}}" GroupName="Profile">Debug (With better logging and DEV menu without achievement support)</RadioButton>
+                </StackPanel>
+            </DockPanel>
+            <DockPanel Name="Edition" IsVisible="False" IsEnabled="False">
+                <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
+                <StackPanel DockPanel.Dock="Left" Width="170"></StackPanel>
+                <StackPanel>
+                <TextBox BorderThickness="0" IsReadOnly="True"> Please select Edition</TextBox>
+                <RadioButton IsChecked="{Binding Edition,
+                     Converter={StaticResource EnumToBoolConverter},
+                     ConverterParameter={x:Static vm:EditionEnum.Standard}}" GroupName="Edition">Standard (DOOM 3 BFG and DOOM 3 (2019))</RadioButton>
+                <RadioButton IsChecked="{Binding Edition,
+                     Converter={StaticResource EnumToBoolConverter},
+                     ConverterParameter={x:Static vm:EditionEnum.Classic}}" GroupName="Edition">Classic (DOOM 1 + 2)</RadioButton>
+                </StackPanel>
+            </DockPanel>
+            <DockPanel Name="Addon" IsVisible="False" IsEnabled="False">
+                <StackPanel>
+                <TextBox BorderThickness="0" IsReadOnly="True">Addons</TextBox>
+                <CheckBox IsChecked="{Binding Addon1}">Open Platform with Steam (enables achievement support)</CheckBox>
+                <CheckBox IsChecked="{Binding Addon2}">Use KEX Engine's GUS patches (replced bundled ones)</CheckBox>
+                </StackPanel>
+            </DockPanel>
+            <DockPanel Name="Path" IsVisible="False" IsEnabled="False">
+                <StackPanel>
+                <TextBox BorderThickness="0" IsReadOnly="True">Select Installation Path</TextBox>
+                <TextBox Text="{Binding MainPath}"></TextBox>
+                <TextBox BorderThickness="0" IsReadOnly="True">Select DOOM 1 + 2 installation Path</TextBox>
+                <TextBox Text="{Binding ClassicPath}"></TextBox>
+                </StackPanel>
+            </DockPanel>
+            <DockPanel Name="Progress" IsVisible="False" IsEnabled="False">
+                <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
+                <StackPanel DockPanel.Dock="Left" Width="8"></StackPanel>
+                <StackPanel>
+                <TextBox BorderThickness="0" IsReadOnly="True"></TextBox>
+                <ProgressBar IsIndeterminate="False" Width="150" Height="15"></ProgressBar>
+                </StackPanel>
+            </DockPanel>
+            <DockPanel Name="End" IsVisible="False">
+                <TextBox BorderThickness="0" DockPanel.Dock="Top" Height="140"></TextBox>
+                <TextBox BorderThickness="0" DockPanel.Dock="Left" Width="150"></TextBox>
+                <TextBox BorderThickness="0" IsReadOnly="True">
+                    Installation/Update Finished
+                </TextBox>
+            </DockPanel>
+        </StackPanel>
+        <StackPanel DockPanel.Dock="Bottom">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <Button Name="Back" Click="Back_Click" IsVisible="False" IsEnabled="False">Back</Button>
+                    <Button Name="Next" Click="Next_Click">Next</Button>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Left">
+                    
+                </StackPanel>
+            </DockPanel>
+        </StackPanel>
+    </DockPanel>
+</Window>
