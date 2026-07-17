@@ -6,7 +6,8 @@
         mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="350"
         Width="600" Height="350" CanResize="False" CanMaximize="False"
         x:Class="DBFAUpdater.MainWindow"
-        Title="DBFAUpdater">
+        Title="DBFAUpdater"
+        Loaded="Window_Loaded">
 
         <Design.DataContext>
             <vm:FormModel></vm:FormModel>
@@ -64,15 +65,15 @@
                 <StackPanel>
                 <TextBox BorderThickness="0" IsReadOnly="True">Addons</TextBox>
                 <CheckBox IsChecked="{Binding Addon1}">Open Platform with Steam (enables achievement support)</CheckBox>
-                <CheckBox IsChecked="{Binding Addon2}">Use KEX Engine's GUS patches (replced bundled ones)</CheckBox>
+                <CheckBox Name="Addon2" IsEnabled="False" IsVisible="False" IsChecked="{Binding Addon2}">Use KEX Engine's GUS patches (replced bundled ones)</CheckBox>
                 </StackPanel>
             </DockPanel>
             <DockPanel Name="Path" IsVisible="False" IsEnabled="False">
                 <StackPanel>
                 <TextBox BorderThickness="0" IsReadOnly="True">Select Installation Path</TextBox>
                 <TextBox Text="{Binding MainPath}"></TextBox>
-                <TextBox BorderThickness="0" IsReadOnly="True">Select DOOM 1 + 2 installation Path</TextBox>
-                <TextBox Text="{Binding ClassicPath}"></TextBox>
+                <TextBox Name="ClassicPathTitle" IsEnabled="False" IsVisible="False" BorderThickness="0" IsReadOnly="True">Select DOOM 1 + 2 installation Path</TextBox>
+                <TextBox Name="ClassicPath" IsEnabled="False" IsVisible="False" Text="{Binding ClassicPath}"></TextBox>
                 </StackPanel>
             </DockPanel>
             <DockPanel Name="Progress" IsVisible="False" IsEnabled="False">

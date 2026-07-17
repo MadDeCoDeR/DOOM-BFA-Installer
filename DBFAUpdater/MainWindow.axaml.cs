@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Avalonia.Controls;
 
 namespace DBFAUpdater;
@@ -31,9 +32,14 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         currentState = states[0];
-    }
-    
 
+        
+    }
+
+    private void Window_Loaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        ((FormModel)DataContext).PropertyChanged += OnEditionChanged;
+    }
 
     private void Next_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
@@ -47,6 +53,7 @@ public partial class MainWindow : Window
 
     private void HandleState(bool direction = true)
     {
+        FormModel dataForm = (FormModel)this.DataContext;
         Control? currentFrame = null;
         Control? upcomingFrame = null;
         StateMachine? upcomingState = direction ? states.GetNextState(currentState) : states.GetPreviousState(currentState);
@@ -54,10 +61,10 @@ public partial class MainWindow : Window
         {
             this.Close();
             return;
-        } 
+        }
 
         int found = 0;
-        foreach(var child in Main.Children)
+        foreach (var child in Main.Children)
         {
             if (child.Name == currentState.Current)
             {
@@ -78,7 +85,7 @@ public partial class MainWindow : Window
 
         currentFrame.IsVisible = false;
         currentFrame.IsEnabled = false;
-        if (upcomingState.Condition != null && !upcomingState.Condition((FormModel)this.DataContext))
+        if (upcomingState.Condition != null && !upcomingState.Condition(dataForm))
         {
             currentState = upcomingState;
             HandleState(direction);
@@ -90,8 +97,27 @@ public partial class MainWindow : Window
 
         Back.IsVisible = upcomingState.Previous != null;
         Back.IsEnabled = upcomingState.Previous != null;
+        Next.IsVisible = upcomingState.Current != "Progress";
+        Next.IsEnabled = upcomingState.Previous != "Progress";
 
         currentState = upcomingState;
 
     }
+
+    private void OnEditionChanged(object sender, PropertyChangedEventArgs e)
+    {
+        FormModel dataModel = ((FormModel)this.DataContext);
+        if (e.PropertyName == "Edition")
+        {
+            Addon2.IsEnabled = dataModel.Edition == EditionEnum.Classic;
+            Addon2.IsVisible = dataModel.Edition == EditionEnum.Classic;
+            ClassicPathTitle.IsEnabled = dataModel.Edition == EditionEnum.Classic;
+            ClassicPathTitle.IsVisible = dataModel.Edition == EditionEnum.Classic;
+            ClassicPath.IsEnabled = dataModel.Edition == EditionEnum.Classic;
+            ClassicPath.IsVisible = dataModel.Edition == EditionEnum.Classic;
+
+        }
+    }
+
+    
 }
