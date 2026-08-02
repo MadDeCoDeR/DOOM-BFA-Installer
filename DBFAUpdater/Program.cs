@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using Avalonia.Wayland;
 using System;
 
 namespace DBFAUpdater;
@@ -16,6 +17,7 @@ class Program
     public static AppBuilder BuildAvaloniaApp()
         => AppBuilder.Configure<App>()
             .UsePlatformDetect()
+            .UseWayland()
 #if DEBUG
             .WithDeveloperTools()
 #endif

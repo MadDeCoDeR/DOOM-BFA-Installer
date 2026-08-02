@@ -16,17 +16,16 @@
     <DockPanel>
         <StackPanel x:DataType="vm:FormModel" Name="Main" DockPanel.Dock="Top" Height="300">
             <DockPanel Name="Welcome" IsVisible="True">
-                <TextBox BorderThickness="0" DockPanel.Dock="Top" Height="140"></TextBox>
-                <TextBox BorderThickness="0" DockPanel.Dock="Left" Width="150"></TextBox>
-                <TextBox BorderThickness="0" IsReadOnly="True">
-                    Welcome to the DOOM BFA Installer/Updater
-                </TextBox>
+                <StackPanel DockPanel.Dock="Top" Height="140"></StackPanel>
+                <StackPanel DockPanel.Dock="Left" Width="150" IsEnabled="False"></StackPanel>
+                <GroupBox BorderThickness="0" Header="Welcome to the DOOM BFA Installer/Updater">
+                </GroupBox>
             </DockPanel>
             <DockPanel Name="Version" IsVisible="False" IsEnabled="False">
                 <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
                 <StackPanel DockPanel.Dock="Left" Width="170"></StackPanel>
                 <StackPanel>
-                <TextBox BorderThickness="0" IsReadOnly="True"> Please select Version</TextBox>
+                <GroupBox BorderThickness="0"  Header="Please select Version"></GroupBox>
                 <RadioButton IsChecked="{Binding Version,
                      Converter={StaticResource EnumToBoolConverter},
                      ConverterParameter={x:Static vm:VersionEnum.Stable}}" GroupName="Version">Latest Stable Release</RadioButton>
@@ -39,7 +38,7 @@
                 <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
                 <StackPanel DockPanel.Dock="Left" Width="90"></StackPanel>
                 <StackPanel>
-                <TextBox BorderThickness="0" IsReadOnly="True"> Please select Release Profile</TextBox>
+                <GroupBox BorderThickness="0" Header="Please select Release Profile"></GroupBox>
                 <RadioButton IsChecked="{Binding Profile,
                      Converter={StaticResource EnumToBoolConverter},
                      ConverterParameter={x:Static vm:ProfileEnum.Retail}}" GroupName="Profile">Retail (Same as final release with achievement support)</RadioButton>
@@ -52,7 +51,7 @@
                 <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
                 <StackPanel DockPanel.Dock="Left" Width="170"></StackPanel>
                 <StackPanel>
-                <TextBox BorderThickness="0" IsReadOnly="True"> Please select Edition</TextBox>
+                <GroupBox BorderThickness="0" Header="Please select Edition"></GroupBox>
                 <RadioButton IsChecked="{Binding Edition,
                      Converter={StaticResource EnumToBoolConverter},
                      ConverterParameter={x:Static vm:EditionEnum.Standard}}" GroupName="Edition">Standard (DOOM 3 BFG and DOOM 3 (2019))</RadioButton>
@@ -63,33 +62,35 @@
             </DockPanel>
             <DockPanel Name="Addon" IsVisible="False" IsEnabled="False">
                 <StackPanel>
-                <TextBox BorderThickness="0" IsReadOnly="True">Addons</TextBox>
+                <GroupBox BorderThickness="0" Header="Addons"></GroupBox>
                 <CheckBox IsChecked="{Binding Addon1}">Open Platform with Steam (enables achievement support)</CheckBox>
                 <CheckBox Name="Addon2" IsEnabled="False" IsVisible="False" IsChecked="{Binding Addon2}">Use KEX Engine's GUS patches (replced bundled ones)</CheckBox>
                 </StackPanel>
             </DockPanel>
-            <DockPanel Name="Path" IsVisible="False" IsEnabled="False">
+            <DockPanel Name="InstPath" IsVisible="False" IsEnabled="False">
                 <StackPanel>
-                <TextBox BorderThickness="0" IsReadOnly="True">Select Installation Path</TextBox>
-                <TextBox Text="{Binding MainPath}"></TextBox>
-                <TextBox Name="ClassicPathTitle" IsEnabled="False" IsVisible="False" BorderThickness="0" IsReadOnly="True">Select DOOM 1 + 2 installation Path</TextBox>
-                <TextBox Name="ClassicPath" IsEnabled="False" IsVisible="False" Text="{Binding ClassicPath}"></TextBox>
+                <GroupBox BorderThickness="0" Header="Select Installation Path">
+                    <TextBox Text="{Binding MainPath}"></TextBox>
+                </GroupBox>
+                <GroupBox Name="ClassicPathTitle" IsEnabled="False" IsVisible="False" BorderThickness="0" Header="Select DOOM 1 + 2 installation Path">
+                    <TextBox Name="ClassicPath" IsEnabled="False" IsVisible="False" Text="{Binding ClassicPath}"></TextBox>
+                </GroupBox>
                 </StackPanel>
             </DockPanel>
             <DockPanel Name="Progress" IsVisible="False" IsEnabled="False">
                 <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
                 <StackPanel DockPanel.Dock="Left" Width="8"></StackPanel>
                 <StackPanel>
-                <TextBox BorderThickness="0" IsReadOnly="True"></TextBox>
-                <ProgressBar IsIndeterminate="False" Width="150" Height="15"></ProgressBar>
+                <GroupBox BorderThickness="0" Name="ProgressText" Width="200" Header="">
+                    <ProgressBar IsIndeterminate="False" Width="150" Height="15" Name="ProgressLoad"></ProgressBar>
+                </GroupBox>
                 </StackPanel>
             </DockPanel>
             <DockPanel Name="End" IsVisible="False">
                 <TextBox BorderThickness="0" DockPanel.Dock="Top" Height="140"></TextBox>
                 <TextBox BorderThickness="0" DockPanel.Dock="Left" Width="150"></TextBox>
-                <TextBox BorderThickness="0" IsReadOnly="True">
-                    Installation/Update Finished
-                </TextBox>
+                <GroupBox BorderThickness="0" Header="Installation/Update Finished">
+                </GroupBox>
             </DockPanel>
         </StackPanel>
         <StackPanel DockPanel.Dock="Bottom">
