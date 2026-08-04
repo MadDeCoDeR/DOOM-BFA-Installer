@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using DBFAUpdater.Models;
@@ -139,18 +140,37 @@ public partial class MainWindow : Window
         }
     }
 
+    private static readonly List<string> SHA256s = new List<string> {
+            "B683AC1B1D3F0CA6B92111DB85FC77ECE9D5C034CE5461EB8A7C4ADD8E239A22", //DOOM 3: BFG Edition
+            "6DAECF3E621756C8A77B3C3064ED5FB488AFE357A80B7C14BEF35B6811B073CE", //DOOM 3 re-release (2019)
+        };
+
+    private static readonly SHA256 sHA256 = SHA256.Create();
+
     private async Task InstallMod()
     {
         FormModel formModel = ((FormModel)DataContext);
         if (string.IsNullOrEmpty(formModel.MainPath))
         {
-            ShowErrorAndRollback("Please provide an installation Path");
+            await ShowErrorAndRollback("Please provide an installation Path");
             return;
         }
         if (formModel.Edition == EditionEnum.Classic && !File.Exists(formModel.ClassicPath + "/doom.wad"))
         {
-            ShowErrorAndRollback("Please provide a proper installation path of DOOM 1 + 2");
+            await ShowErrorAndRollback("Please provide a proper installation path of DOOM 1 + 2");
             return;
+        }
+
+        if (formModel.Edition == EditionEnum.Classic && File.Exists(formModel.MainPath + "/base/_common.resources"))
+        {
+            string filePath = formModel.MainPath + "/base/_common.resources";
+            byte[] data = File.ReadAllBytes(filePath);
+            string fileSha256 = BitConverter.ToString(sHA256.ComputeHash(data)).ToUpper().Replace("-", "");
+            if (fileSha256 == SHA256s[0] || fileSha256 == SHA256s[1])
+            {
+                await ShowErrorAndRollback("You can't install Classic Edition on DOOM 3 BFG Edition\nPlease Select another path");
+                return;
+            }
         }
         OperatingSystem os = Environment.OSVersion;
         string osString = os.Platform == PlatformID.Win32NT ? "Windows" : "Linux";
@@ -330,38 +350,6 @@ public partial class MainWindow : Window
 
     private async Task CopyWadFiles(string source, string destination)
     {
-        
-        int totalWadFiles = 29;
-        int copiedFiles = 0;
-        SafeCopy(source + "/doom.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/doom2.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/extras.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/sigil.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/sigil2.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/nerve.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/tnt.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/plutonia.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-        SafeCopy(source + "/id1.wad", destination + "/base/wads");
-        copiedFiles++;
-        ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
-
-        //Search for Master Levels
         string masterSource = "";
         if (Directory.Exists(Directory.GetParent(source).ToString() + "/base/master/wads"))
         {
@@ -370,14 +358,39 @@ public partial class MainWindow : Window
         {
             masterSource = source + "/dosdoom/base/master/wads";
         }
+        long totalFileSize = CalculateFileSizes([
+            source + "/doom.wad",
+            source + "/doom2.wad",
+            source + "/extras.wad",
+            source + "/sigil.wad",
+            source + "/sigil2.wad",
+            source + "/nerve.wad",
+            source + "/tnt.wad",
+            source + "/plutonia.wad",
+            source + "/id1.wad",
+            ..Directory.GetFiles(masterSource)
+        ]);
+        long WrittenFileSize = 0;
+        WrittenFileSize += await SafeCopyWithProgress(source + "/doom.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/doom2.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/extras.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/sigil.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/sigil2.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/nerve.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/tnt.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/plutonia.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        WrittenFileSize += await SafeCopyWithProgress(source + "/id1.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
+        
+        
+
+        //Search for Master Levels
+        
 
         if (!string.IsNullOrEmpty(masterSource)) {
             Directory.CreateDirectory(destination + "/base/wads/master");
             foreach(var file in Directory.GetFiles(masterSource))
             {
-                SafeCopy(file, destination + "/base/wads/master");
-                copiedFiles++;
-                ProgressLoad.Value = (copiedFiles / totalWadFiles) * 100;
+                WrittenFileSize += await SafeCopyWithProgress(file, destination + "/base/wads/master", WrittenFileSize, totalFileSize);
             }
         }
     }
@@ -453,7 +466,7 @@ public partial class MainWindow : Window
 
     private async Task ExtractKEXGUS(string source, string destination)
     {
-        ProgressText.Header = "Extracting KEX Engine GUS";
+        ProgressText.Header = "Extracting KEX's GUS";
         ProgressLoad.IsIndeterminate = true;
         ProgressLoad.ShowProgressText = false;
 
@@ -473,5 +486,48 @@ public partial class MainWindow : Window
             string fileName = Path.GetFileName(source);
             File.Copy(source, destination + "/" + fileName, true);
         }
+    }
+
+    private long CalculateFileSizes(string[] files)
+    {
+        long totalSize = 0;
+        foreach( string file in files)
+        {
+            using(FileStream fileStream = File.OpenRead(file))
+            {
+                totalSize += fileStream.Length;
+            }
+        }
+
+        return totalSize;
+    }
+
+    private async Task<int> SafeCopyWithProgress(string source, string destination, long writtenSize, long FileSize)
+    {
+        int finalBufferSize = 0;
+        if (File.Exists(source))
+        {
+            string fileName = Path.GetFileName(source);
+            using(FileStream destFile = File.OpenWrite(destination + "/" + fileName))
+            {
+                using (FileStream sourceFile = File.OpenRead(source))
+                {
+                    while (true) {
+                        byte[] buffer = new byte[8 * 1024];
+                        int bufferSize = await sourceFile.ReadAsync(buffer, 0, 8 * 1024);
+                        if (bufferSize > 0) {
+                            await destFile.WriteAsync(buffer, 0, bufferSize);
+                            writtenSize += bufferSize;
+                            finalBufferSize += bufferSize;
+                            ProgressLoad.Value = ((writtenSize * 1.0) / FileSize) * 100;
+                        } else
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return finalBufferSize;
     }
 }
