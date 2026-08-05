@@ -46,9 +46,7 @@ public partial class MainWindow : Window
         InitializeComponent();
         currentState = states[0];
         httpClient = new HttpClient();
-        httpClient.DefaultRequestHeaders.Add("Authorization", "Bearer "); //GK: Put it on releases
-
-        
+        httpClient.DefaultRequestHeaders.Add("User-Agent", "DBFAInstaller/1.0.0.0"); //GK: Put it on releases
     }
 
     private void Window_Loaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
