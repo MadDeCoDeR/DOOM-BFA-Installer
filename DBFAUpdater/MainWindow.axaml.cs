@@ -108,8 +108,8 @@ public partial class MainWindow : Window
         upcomingFrame.IsEnabled = true;
 
 
-        Back.IsVisible = upcomingState.Previous != null || (upcomingState.Current == "Progress");
-        Back.IsEnabled = upcomingState.Previous != null || (upcomingState.Current == "Progress");
+        Back.IsVisible = upcomingState.Previous != null && (upcomingState.Current != "Progress");
+        Back.IsEnabled = upcomingState.Previous != null && (upcomingState.Current != "Progress");
         Next.IsVisible = upcomingState.Current != "Progress";
         Next.IsEnabled = upcomingState.Previous != "Progress";
         Next.Content = upcomingState.Current == "End" ? "Close" : "Next";
