@@ -63,7 +63,7 @@
             <DockPanel Name="Addon" IsVisible="False" IsEnabled="False">
                 <StackPanel>
                 <GroupBox BorderThickness="0" Header="Addons"></GroupBox>
-                <CheckBox IsChecked="{Binding Addon1}">Open Platform with Steam (enables achievement support)</CheckBox>
+                <CheckBox Name="Addon1" IsChecked="{Binding Addon1}">Open Platform with Steam (enables achievement support)</CheckBox>
                 <CheckBox Name="Addon2" IsEnabled="False" IsVisible="False" IsChecked="{Binding Addon2}">Use KEX Engine's GUS patches (replced bundled ones)</CheckBox>
                 </StackPanel>
             </DockPanel>

@@ -13,6 +13,7 @@ using MsBox.Avalonia;
 using MsBox.Avalonia.Base;
 using MsBox.Avalonia.Enums;
 using Newtonsoft.Json;
+using DBFAUpdater.Utils;
 
 namespace DBFAUpdater;
 
@@ -32,7 +33,7 @@ public partial class MainWindow : Window
         new StateMachine { Previous = "Welcome", Current = "Version", Next = "Profile", Condition = null },
         new StateMachine { Previous = "Version", Current = "Profile", Next = "Edition", Condition = (context) => context.Version == VersionEnum.Beta },
         new StateMachine { Previous = "Profile", Current = "Edition", Next = "Addon", Condition = null },
-        new StateMachine { Previous = "Edition", Current = "Addon", Next = "InstPath", Condition = null },
+        new StateMachine { Previous = "Edition", Current = "Addon", Next = "InstPath", Condition = (context) => CheckAvailableAddons(context) },
         new StateMachine { Previous = "Addon", Current = "InstPath", Next = "Progress", Condition = null },
         new StateMachine { Previous = "InstPath", Current = "Progress", Next = "End", Condition = null },
         new StateMachine { Previous = null, Current = "End", Next = null, Condition = null },
@@ -52,6 +53,7 @@ public partial class MainWindow : Window
     private void Window_Loaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         ((FormModel)DataContext).PropertyChanged += OnEditionChanged;
+        ((FormModel)DataContext).PropertyChanged += OnProfileChanged;
     }
 
     private async void Next_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -136,6 +138,24 @@ public partial class MainWindow : Window
             ClassicPath.IsVisible = dataModel.Edition == EditionEnum.Classic;
 
         }
+    }
+
+    private void OnProfileChanged(object sender, PropertyChangedEventArgs e)
+    {
+        FormModel dataModel = ((FormModel)this.DataContext);
+        if (e.PropertyName == "Profile")
+        {
+            Addon1.IsEnabled = dataModel.Profile == ProfileEnum.Retail || dataModel.Version == VersionEnum.Stable;
+            Addon1.IsVisible = dataModel.Profile == ProfileEnum.Retail || dataModel.Version == VersionEnum.Stable;
+
+        }
+    }
+
+    private static bool CheckAvailableAddons(FormModel formModel)
+    {
+        bool isAddon1Active = formModel.Profile == ProfileEnum.Retail || formModel.Version == VersionEnum.Stable;
+        bool isAddon2Active = formModel.Edition == EditionEnum.Classic;
+        return isAddon1Active || isAddon2Active;
     }
 
     private static readonly List<string> SHA256s = new List<string> {
@@ -237,7 +257,7 @@ public partial class MainWindow : Window
             source += "/" + osString + "-x64";
         }
 
-        await CopyDirectoryContents(source, Destination);
+        await Utilities.CopyDirectoryContents(source, Destination);
         if (formModel.Version == VersionEnum.Beta && formModel.Profile == ProfileEnum.Retail && !File.Exists(Destination + "/steam_appid.txt"))
         {
             using (StreamWriter outputFile = new StreamWriter(Destination + "/steam_appid.txt"))
@@ -269,7 +289,7 @@ public partial class MainWindow : Window
 
         }
 
-        if (formModel.Addon1)
+        if (formModel.Addon1 && (formModel.Profile == ProfileEnum.Retail || formModel.Version == VersionEnum.Stable))
         {
             await InstallOpenPlatform(formModel.MainPath);
         }
@@ -333,19 +353,6 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task CopyDirectoryContents(string source, string destination)
-    {
-        foreach(var dir in Directory.GetDirectories(source, "*", SearchOption.AllDirectories))
-        {
-            Directory.CreateDirectory(dir.Replace(source, destination));
-        }
-
-        foreach(var file in Directory.GetFiles(source, "*.*", SearchOption.AllDirectories))
-        {
-            File.Copy(file, file.Replace(source, destination), true);
-        }
-    }
-
     private async Task CopyWadFiles(string source, string destination)
     {
         string masterSource = "";
@@ -356,7 +363,7 @@ public partial class MainWindow : Window
         {
             masterSource = source + "/dosdoom/base/master/wads";
         }
-        long totalFileSize = CalculateFileSizes([
+        long totalFileSize = Utilities.CalculateFileSizes([
             source + "/doom.wad",
             source + "/doom2.wad",
             source + "/extras.wad",
@@ -378,12 +385,8 @@ public partial class MainWindow : Window
         WrittenFileSize += await SafeCopyWithProgress(source + "/tnt.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
         WrittenFileSize += await SafeCopyWithProgress(source + "/plutonia.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
         WrittenFileSize += await SafeCopyWithProgress(source + "/id1.wad", destination + "/base/wads", WrittenFileSize, totalFileSize);
-        
-        
 
         //Search for Master Levels
-        
-
         if (!string.IsNullOrEmpty(masterSource)) {
             Directory.CreateDirectory(destination + "/base/wads/master");
             foreach(var file in Directory.GetFiles(masterSource))
@@ -444,10 +447,10 @@ public partial class MainWindow : Window
         {
             if (Path.GetFileName(file).Contains("OpenPlatform"))
             {
-                SafeCopy(file, destination + "/base");
+                Utilities.SafeCopy(file, destination + "/base");
             } else
             {
-                SafeCopy(file, destination);
+                Utilities.SafeCopy(file, destination);
             }
         }
         //cleanup
@@ -468,38 +471,13 @@ public partial class MainWindow : Window
         ProgressLoad.IsIndeterminate = true;
         ProgressLoad.ShowProgressText = false;
 
-        using(FileStream file = File.OpenRead(source + "/Common.kpf"))
-        {
-            await ZipFile.ExtractToDirectoryAsync(file, "./kex_common");
-        }
-        await CopyDirectoryContents(destination + "/base/classicmusic", destination + "/base/dgguspats");
+        await Utilities.SelectiveExtraction(source + "/Common.kpf", "./kex_common", "GUS");
+        await Utilities.CopyDirectoryContents(destination + "/base/classicmusic", destination + "/base/dgguspat");
         Directory.Delete(destination + "/base/classicmusic", true);
-        await CopyDirectoryContents("./kex_common/GUS", destination + "/base/classicmusic");
+        await Utilities.CopyDirectoryContents("./kex_common/GUS", destination + "/base/classicmusic");
         Directory.Delete("./kex_common", true);
     }
-    private void SafeCopy(string source, string destination)
-    {
-        if (File.Exists(source))
-        {
-            string fileName = Path.GetFileName(source);
-            File.Copy(source, destination + "/" + fileName, true);
-        }
-    }
-
-    private long CalculateFileSizes(string[] files)
-    {
-        long totalSize = 0;
-        foreach( string file in files)
-        {
-            using(FileStream fileStream = File.OpenRead(file))
-            {
-                totalSize += fileStream.Length;
-            }
-        }
-
-        return totalSize;
-    }
-
+    
     private async Task<int> SafeCopyWithProgress(string source, string destination, long writtenSize, long FileSize)
     {
         int finalBufferSize = 0;
