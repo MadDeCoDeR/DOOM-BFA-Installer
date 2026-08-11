@@ -17,12 +17,12 @@ public static class Utilities
             foreach(ZipArchiveEntry entry in FoundEntries)
             {
                 int lastSlashIndex = entry.FullName.LastIndexOf("/");
-                string entryFolderName = entry.FullName.Substring(0, lastSlashIndex);
-                if (!Directory.Exists(DestinationFolder + "/" + entryFolderName))
+                string entryFolderName = lastSlashIndex > 0 ? entry.FullName.Substring(0, lastSlashIndex) : entry.FullName;
+                if (!Directory.Exists(DestinationFolder + "/" + entryFolderName) && lastSlashIndex > 0)
                 {
                     Directory.CreateDirectory(DestinationFolder + "/" + entryFolderName);
                 }
-                await entry.ExtractToFileAsync(DestinationFolder + "/" + entry.FullName);
+                await entry.ExtractToFileAsync(DestinationFolder + "/" + entry.FullName, true);
             }
         }
     }

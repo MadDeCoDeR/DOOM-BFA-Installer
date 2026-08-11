@@ -64,7 +64,10 @@
                 <StackPanel>
                 <GroupBox BorderThickness="0" Header="Addons"></GroupBox>
                 <CheckBox Name="Addon1" IsChecked="{Binding Addon1}">Open Platform with Steam (enables achievement support)</CheckBox>
-                <CheckBox Name="Addon2" IsEnabled="False" IsVisible="False" IsChecked="{Binding Addon2}">Use KEX Engine's GUS patches (replced bundled ones)</CheckBox>
+                <CheckBox Name="Addon2" IsEnabled="False" IsVisible="False" IsChecked="{Binding Addon2}">Use KEX Engine's GUS patches (replaces bundled dgguspat)</CheckBox>
+                <CheckBox Name="Addon3" IsChecked="{Binding Addon3}">Restore D3ROE's Erebus5 hazard section (new logic)</CheckBox>
+                <CheckBox Name="Addon4" IsChecked="{Binding Addon4}">Restore D3ROE's Arcades</CheckBox>
+                <CheckBox Name="Addon5" IsChecked="{Binding Addon5}">Add new arcade on Lost Mission's exis labs 1</CheckBox>
                 </StackPanel>
             </DockPanel>
             <DockPanel Name="InstPath" IsVisible="False" IsEnabled="False">

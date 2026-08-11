@@ -46,7 +46,9 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         currentState = states[0];
-        httpClient = new HttpClient();
+        HttpClientHandler httpClientHandler = new HttpClientHandler();
+        httpClientHandler.AllowAutoRedirect = true;
+        httpClient = new HttpClient(httpClientHandler);
         httpClient.DefaultRequestHeaders.Add("User-Agent", "DBFAInstaller/1.0.0.0"); //GK: Put it on releases
     }
 
@@ -54,6 +56,7 @@ public partial class MainWindow : Window
     {
         ((FormModel)DataContext).PropertyChanged += OnEditionChanged;
         ((FormModel)DataContext).PropertyChanged += OnProfileChanged;
+        ((FormModel)DataContext).PropertyChanged += OnAddonSelected;
     }
 
     private async void Next_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -132,8 +135,11 @@ public partial class MainWindow : Window
         {
             Addon2.IsEnabled = dataModel.Edition == EditionEnum.Classic;
             Addon2.IsVisible = dataModel.Edition == EditionEnum.Classic;
+            Addon3.IsVisible = dataModel.Edition == EditionEnum.Standard;
+            Addon3.IsEnabled = dataModel.Edition == EditionEnum.Standard;
             ClassicPathTitle.IsEnabled = dataModel.Edition == EditionEnum.Classic;
             ClassicPathTitle.IsVisible = dataModel.Edition == EditionEnum.Classic;
+            ClassicPathTitle.Header = dataModel.Edition == EditionEnum.Classic ? "Select DOOM 1 + 2 installation Path" : ClassicPathTitle.Header;
             ClassicPath.IsEnabled = dataModel.Edition == EditionEnum.Classic;
             ClassicPath.IsVisible = dataModel.Edition == EditionEnum.Classic;
 
@@ -151,11 +157,28 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnAddonSelected(object sender, PropertyChangedEventArgs e)
+    {
+        FormModel dataModel = ((FormModel)this.DataContext);
+        if (e.PropertyName == "Addon3" || e.PropertyName == "Addon4")
+        {
+            bool isTheAddonSelected = dataModel.Addon3 || dataModel.Addon4;
+            ClassicPathTitle.IsEnabled = isTheAddonSelected;
+            ClassicPathTitle.IsVisible = isTheAddonSelected;
+            ClassicPathTitle.Header = isTheAddonSelected ? "Select OG DOOM 3 installation Path" : "Select DOOM 1 + 2 installation Path";
+            ClassicPath.IsEnabled = isTheAddonSelected;
+            ClassicPath.IsVisible = isTheAddonSelected;
+
+
+        }
+    }
+
     private static bool CheckAvailableAddons(FormModel formModel)
     {
         bool isAddon1Active = formModel.Profile == ProfileEnum.Retail || formModel.Version == VersionEnum.Stable;
         bool isAddon2Active = formModel.Edition == EditionEnum.Classic;
-        return isAddon1Active || isAddon2Active;
+        bool isAddons345Active = formModel.Edition == EditionEnum.Standard;
+        return isAddon1Active || isAddon2Active || isAddons345Active;
     }
 
     private static readonly List<string> SHA256s = new List<string> {
@@ -187,6 +210,20 @@ public partial class MainWindow : Window
             if (fileSha256 == SHA256s[0] || fileSha256 == SHA256s[1])
             {
                 await ShowErrorAndRollback("You can't install Classic Edition on DOOM 3 BFG Edition\nPlease Select another path");
+                return;
+            }
+        }
+
+        if (formModel.Addon3 || formModel.Addon4)
+        {
+            if (string.IsNullOrEmpty(formModel.ClassicPath)) {
+                await ShowErrorAndRollback("Please provide a path for the Original DOOM 3");
+                return;
+            }
+
+            if (!File.Exists(formModel.ClassicPath + "/d3xp/pak000.pk4"))
+            {
+                await ShowErrorAndRollback("The Original DOOM 3 path doesn't have the ROE expansion installed");
                 return;
             }
         }
@@ -299,9 +336,189 @@ public partial class MainWindow : Window
             await ExtractKEXGUS(formModel.ClassicPath, formModel.MainPath);
         }
 
+        if ((formModel.Addon3 || formModel.Addon4 || formModel.Addon5) && formModel.Edition == EditionEnum.Standard)
+        {
+            ProgressText.Header = "Downloading BFA extras";
+            ProgressLoad.IsIndeterminate = false;
+            ProgressLoad.ShowProgressText = true;
+            await DownloadFile("https://github.com/MadDeCoDeR/BFA-Assets/archive/refs/heads/extras.zip", "./bfa_extras.zip");
+            if (Directory.Exists("./bfa_extras"))
+            {
+                Directory.Delete("./bfa_extras", true);
+            }
+            using(FileStream file = File.OpenRead("./bfa_extras.zip"))
+            {
+                await ZipFile.ExtractToDirectoryAsync(file, "./bfa_extras");
+            }
+            if (formModel.Addon3) {
+                await InstallErebus5Restored(formModel.ClassicPath, formModel.MainPath);
+            }
+            if (formModel.Addon4)
+            {
+                await InstallROEArcades(formModel.ClassicPath, formModel.MainPath);
+            }
+
+            if (formModel.Addon5)
+            {
+                await InstallLEArcade(formModel.MainPath);
+            }
+
+            if (Directory.Exists("./bfa_extras"))
+            {
+                Directory.Delete("./bfa_extras", true);
+            }
+
+            if (Directory.Exists("./ogD3Assets"))
+            {
+                Directory.Delete("./ogD3Assets", true);
+            }
+
+            if (File.Exists("./bfa_extras.zip"))
+            {
+                File.Delete("./bfa_extras.zip");
+            }
+
+        }
+
         this.HandleState();
     }
 
+/**
+Addons logic
+*/
+    private async Task InstallOpenPlatform(string destination)
+    {
+        OperatingSystem os = Environment.OSVersion;
+        string osString = os.Platform == PlatformID.Win32NT ? "Windows" : "Linux";
+        //First get available releases of Open Platform
+        GitRelease? latestRelease = null;
+        int i = 1;
+        ProgressText.Header = "Checking Latest Release";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+        HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/MadDeCoDeR/Open_Platform/releases?page=" + i);
+        ICollection<GitRelease> releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
+        latestRelease = releases.OrderByDescending(rel => rel.PublishedAt).First();
+        i++;
+        if (latestRelease == null)
+        {
+            await ShowError("Failed to Find the latest release");
+            return;
+        }
+        GitReleaseAsset? asset = latestRelease?.Assets?.Where(ast => ast.Name.Contains("Steam")).FirstOrDefault();;
+
+        if (asset == null)
+        {
+            await ShowError("Failed to find the right asset");
+            return;
+        }
+
+        ProgressText.Header = "Downloading Open Platform";
+        ProgressLoad.IsIndeterminate = false;
+        ProgressLoad.ShowProgressText = true;
+        await DownloadFile(asset.DownloadUrl, "./open_platform.zip");
+
+        ProgressText.Header = "Extracting Open Platform";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+
+        if (Directory.Exists("./open_platform"))
+        {
+            Directory.Delete("./open_platform", true);
+        }
+        using(FileStream file = File.OpenRead("./open_platform.zip"))
+        {
+            await ZipFile.ExtractToDirectoryAsync(file, "./open_platform");
+        }
+
+        string source = "./open_platform" + "/" + osString.ToLower() + "64";
+
+        foreach (var file in Directory.GetFiles(source))
+        {
+            if (Path.GetFileName(file).Contains("OpenPlatform"))
+            {
+                Utilities.SafeCopy(file, destination + "/base");
+            } else
+            {
+                Utilities.SafeCopy(file, destination);
+            }
+        }
+        //cleanup
+        if (Directory.Exists("./open_platform"))
+        {
+            Directory.Delete("./open_platform", true);
+        }
+        if (File.Exists("./open_platform.zip"))
+        {
+            File.Delete("./open_platform.zip");
+        }
+
+    }
+
+    private async Task ExtractKEXGUS(string source, string destination)
+    {
+        ProgressText.Header = "Extracting KEX's GUS";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+
+        await Utilities.SelectiveExtraction(source + "/Common.kpf", "./kex_common", "GUS");
+        await Utilities.CopyDirectoryContents(destination + "/base/classicmusic", destination + "/base/dgguspat");
+        Directory.Delete(destination + "/base/classicmusic", true);
+        await Utilities.CopyDirectoryContents("./kex_common/GUS", destination + "/base/classicmusic");
+        Directory.Delete("./kex_common", true);
+    }
+    
+    private async Task InstallErebus5Restored(string source, string destination)
+    {
+        ProgressText.Header = "Restoring Erebus5";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "def/monster_zombie_hazmat");
+        if (!Directory.Exists(destination + "/base/def"))
+        {
+            Directory.CreateDirectory(destination + "/base/def");
+        }
+        Utilities.SafeCopy("./ogD3Assets/def/monster_zombie_hazmat.def", destination + "/base/def");
+        Utilities.SafeCopy("./bfa_extras/BFA-Assets-extras/zExtra_erebus5.resources", destination + "/base/maps");
+    }
+
+    private async Task InstallROEArcades(string source, string destination)
+    {
+        ProgressText.Header = "Restoring ROE Arcades";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "guis/assets/arcade");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "guis/assets/bearshoot");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "guis/assets/bustout");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "guis/GameBustOut");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "guis/GameSSD");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "guis/GameBearShoot");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "materials/GameBearShoot");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "materials/GameSSD");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "models/mapobjects/arcade_machine");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "newpdas/arcade");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "sound/arcade_machines");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "sound/arcade");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "textures/particles/fball2_strip");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "textures/particles/flame2_strip");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "ui/assets/crosshair");
+        await Utilities.CopyDirectoryContents("./ogD3Assets", destination + "/base");
+        Utilities.SafeCopy("./bfa_extras/BFA-Assets-extras/zExtra_ROE_arcades.resources", destination + "/base/maps");
+    }
+
+    private async Task InstallLEArcade(string destination)
+    {
+        ProgressText.Header = "Installing ROE Arcade";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+
+        Utilities.SafeCopy("./bfa_extras/BFA-Assets-extras/zExtra_le_arcade.resources", destination + "/base/maps");
+    }
+/**
+Bound to UI utilities
+*/
     private async Task ShowError(string Message)
     {
         IMsBox<ButtonResult> messageBox = MessageBoxManager.GetMessageBoxStandard("Error", Message, ButtonEnum.Ok);
@@ -310,6 +527,35 @@ public partial class MainWindow : Window
         {
             this.Close();
         }
+    }
+
+    private async Task<int> SafeCopyWithProgress(string source, string destination, long writtenSize, long FileSize)
+    {
+        int finalBufferSize = 0;
+        if (File.Exists(source))
+        {
+            string fileName = Path.GetFileName(source);
+            using(FileStream destFile = File.OpenWrite(destination + "/" + fileName))
+            {
+                using (FileStream sourceFile = File.OpenRead(source))
+                {
+                    while (true) {
+                        byte[] buffer = new byte[8 * 1024];
+                        int bufferSize = await sourceFile.ReadAsync(buffer, 0, 8 * 1024);
+                        if (bufferSize > 0) {
+                            await destFile.WriteAsync(buffer, 0, bufferSize);
+                            writtenSize += bufferSize;
+                            finalBufferSize += bufferSize;
+                            ProgressLoad.Value = ((writtenSize * 1.0) / FileSize) * 100;
+                        } else
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return finalBufferSize;
     }
 
     private async Task ShowErrorAndRollback(string Message)
@@ -396,114 +642,5 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task InstallOpenPlatform(string destination)
-    {
-        OperatingSystem os = Environment.OSVersion;
-        string osString = os.Platform == PlatformID.Win32NT ? "Windows" : "Linux";
-        //First get available releases of Open Platform
-        GitRelease? latestRelease = null;
-        int i = 1;
-        ProgressText.Header = "Checking Latest Release";
-        ProgressLoad.IsIndeterminate = true;
-        ProgressLoad.ShowProgressText = false;
-        HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/MadDeCoDeR/Open_Platform/releases?page=" + i);
-        ICollection<GitRelease> releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
-        latestRelease = releases.OrderByDescending(rel => rel.PublishedAt).First();
-        i++;
-        if (latestRelease == null)
-        {
-            await ShowError("Failed to Find the latest release");
-            return;
-        }
-        GitReleaseAsset? asset = latestRelease?.Assets?.Where(ast => ast.Name.Contains("Steam")).FirstOrDefault();;
-
-        if (asset == null)
-        {
-            await ShowError("Failed to find the right asset");
-            return;
-        }
-
-        ProgressText.Header = "Downloading Open Platform";
-        ProgressLoad.IsIndeterminate = false;
-        ProgressLoad.ShowProgressText = true;
-        await DownloadFile(asset.DownloadUrl, "./open_platform.zip");
-
-        ProgressText.Header = "Extracting Open Platform";
-        ProgressLoad.IsIndeterminate = true;
-        ProgressLoad.ShowProgressText = false;
-
-        if (Directory.Exists("./open_platform"))
-        {
-            Directory.Delete("./open_platform", true);
-        }
-        using(FileStream file = File.OpenRead("./open_platform.zip"))
-        {
-            await ZipFile.ExtractToDirectoryAsync(file, "./open_platform");
-        }
-
-        string source = "./open_platform" + "/" + osString.ToLower() + "64";
-
-        foreach (var file in Directory.GetFiles(source))
-        {
-            if (Path.GetFileName(file).Contains("OpenPlatform"))
-            {
-                Utilities.SafeCopy(file, destination + "/base");
-            } else
-            {
-                Utilities.SafeCopy(file, destination);
-            }
-        }
-        //cleanup
-        if (Directory.Exists("./open_platform"))
-        {
-            Directory.Delete("./open_platform", true);
-        }
-        if (File.Exists("./open_platform.zip"))
-        {
-            File.Delete("./open_platform.zip");
-        }
-
-    }
-
-    private async Task ExtractKEXGUS(string source, string destination)
-    {
-        ProgressText.Header = "Extracting KEX's GUS";
-        ProgressLoad.IsIndeterminate = true;
-        ProgressLoad.ShowProgressText = false;
-
-        await Utilities.SelectiveExtraction(source + "/Common.kpf", "./kex_common", "GUS");
-        await Utilities.CopyDirectoryContents(destination + "/base/classicmusic", destination + "/base/dgguspat");
-        Directory.Delete(destination + "/base/classicmusic", true);
-        await Utilities.CopyDirectoryContents("./kex_common/GUS", destination + "/base/classicmusic");
-        Directory.Delete("./kex_common", true);
-    }
     
-    private async Task<int> SafeCopyWithProgress(string source, string destination, long writtenSize, long FileSize)
-    {
-        int finalBufferSize = 0;
-        if (File.Exists(source))
-        {
-            string fileName = Path.GetFileName(source);
-            using(FileStream destFile = File.OpenWrite(destination + "/" + fileName))
-            {
-                using (FileStream sourceFile = File.OpenRead(source))
-                {
-                    while (true) {
-                        byte[] buffer = new byte[8 * 1024];
-                        int bufferSize = await sourceFile.ReadAsync(buffer, 0, 8 * 1024);
-                        if (bufferSize > 0) {
-                            await destFile.WriteAsync(buffer, 0, bufferSize);
-                            writtenSize += bufferSize;
-                            finalBufferSize += bufferSize;
-                            ProgressLoad.Value = ((writtenSize * 1.0) / FileSize) * 100;
-                        } else
-                        {
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        return finalBufferSize;
-    }
 }
