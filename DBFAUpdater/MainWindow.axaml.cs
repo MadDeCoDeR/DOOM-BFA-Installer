@@ -14,6 +14,9 @@ using MsBox.Avalonia.Base;
 using MsBox.Avalonia.Enums;
 using Newtonsoft.Json;
 using DBFAUpdater.Utils;
+using Avalonia.Platform.Storage;
+using System.Reflection;
+using System.Threading;
 
 namespace DBFAUpdater;
 
@@ -57,6 +60,7 @@ public partial class MainWindow : Window
         ((FormModel)DataContext).PropertyChanged += OnEditionChanged;
         ((FormModel)DataContext).PropertyChanged += OnProfileChanged;
         ((FormModel)DataContext).PropertyChanged += OnAddonSelected;
+        ((FormModel)DataContext).PropertyChanged += OnVersionSelected;
     }
 
     private async void Next_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -67,6 +71,24 @@ public partial class MainWindow : Window
     private async void Back_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         HandleState(false);
+    }
+
+    private async void FolderSelector_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        IReadOnlyList<IStorageFolder>? folder = await this.StorageProvider.OpenFolderPickerAsync(new Avalonia.Platform.Storage.FolderPickerOpenOptions
+        {
+            AllowMultiple = false
+        });
+        string? mountPoint = ((Button?)sender)?.Name?.Replace("Button", "");
+        if (!string.IsNullOrEmpty(mountPoint) && folder != null && folder.Count > 0)
+        {
+            FormModel formModel = ((FormModel)DataContext);
+            PropertyInfo? mountProperty = formModel?.GetType().GetProperties().Where(prop => prop.Name.Contains(mountPoint)).FirstOrDefault();
+            if (mountProperty != null)
+            {
+                mountProperty.SetValue(formModel, folder[0].Path.LocalPath);
+            }
+        }
     }
 
     private async void HandleState(bool direction = true)
@@ -119,6 +141,11 @@ public partial class MainWindow : Window
         Next.IsEnabled = upcomingState.Previous != "Progress";
         Next.Content = upcomingState.Current == "End" ? "Close" : "Next";
 
+        if (currentState.Current == "Addon" && !direction)
+        {
+            ResetAddons();
+        }
+
         currentState = upcomingState;
 
         if (currentState.Current == "Progress")
@@ -137,6 +164,12 @@ public partial class MainWindow : Window
             Addon2.IsVisible = dataModel.Edition == EditionEnum.Classic;
             Addon3.IsVisible = dataModel.Edition == EditionEnum.Standard;
             Addon3.IsEnabled = dataModel.Edition == EditionEnum.Standard;
+            Addon4.IsVisible = dataModel.Edition == EditionEnum.Standard;
+            Addon4.IsEnabled = dataModel.Edition == EditionEnum.Standard;
+            Addon5.IsVisible = dataModel.Edition == EditionEnum.Standard;
+            Addon5.IsEnabled = dataModel.Edition == EditionEnum.Standard;
+            Addon6.IsVisible = dataModel.Edition == EditionEnum.Standard;
+            Addon6.IsEnabled = dataModel.Edition == EditionEnum.Standard;
             ClassicPathTitle.IsEnabled = dataModel.Edition == EditionEnum.Classic;
             ClassicPathTitle.IsVisible = dataModel.Edition == EditionEnum.Classic;
             ClassicPathTitle.Header = dataModel.Edition == EditionEnum.Classic ? "Select DOOM 1 + 2 installation Path" : ClassicPathTitle.Header;
@@ -160,12 +193,12 @@ public partial class MainWindow : Window
     private void OnAddonSelected(object sender, PropertyChangedEventArgs e)
     {
         FormModel dataModel = ((FormModel)this.DataContext);
-        if (e.PropertyName == "Addon3" || e.PropertyName == "Addon4")
+        if (e.PropertyName == "Addon3" || e.PropertyName == "Addon4" || e.PropertyName == "Addon6")
         {
-            bool isTheAddonSelected = dataModel.Addon3 || dataModel.Addon4;
+            bool isTheAddonSelected = dataModel.Addon3 || dataModel.Addon4 || dataModel.Addon6;
             ClassicPathTitle.IsEnabled = isTheAddonSelected;
             ClassicPathTitle.IsVisible = isTheAddonSelected;
-            ClassicPathTitle.Header = isTheAddonSelected ? "Select OG DOOM 3 installation Path" : "Select DOOM 1 + 2 installation Path";
+            ClassicPathTitle.Header = isTheAddonSelected ? "Select Original DOOM 3 installation Path" : "Select DOOM 1 + 2 installation Path";
             ClassicPath.IsEnabled = isTheAddonSelected;
             ClassicPath.IsVisible = isTheAddonSelected;
 
@@ -173,12 +206,36 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnVersionSelected(object sender, PropertyChangedEventArgs e)
+    {
+        FormModel dataModel = ((FormModel)this.DataContext);
+        if (e.PropertyName == "Version")
+        {
+            Addon7.IsEnabled = dataModel.Version == VersionEnum.Beta;
+            Addon7.IsVisible = dataModel.Version == VersionEnum.Beta;
+
+        }
+    }
+
+    private void ResetAddons()
+    {
+        FormModel dataModel = ((FormModel)this.DataContext);
+        dataModel.Addon1 = false;
+        dataModel.Addon2 = false;
+        dataModel.Addon3 = false;
+        dataModel.Addon4 = false;
+        dataModel.Addon5 = false;
+        dataModel.Addon6 = false;
+        dataModel.Addon7 = false;
+    }
+
     private static bool CheckAvailableAddons(FormModel formModel)
     {
         bool isAddon1Active = formModel.Profile == ProfileEnum.Retail || formModel.Version == VersionEnum.Stable;
         bool isAddon2Active = formModel.Edition == EditionEnum.Classic;
-        bool isAddons345Active = formModel.Edition == EditionEnum.Standard;
-        return isAddon1Active || isAddon2Active || isAddons345Active;
+        bool isAddons3456Active = formModel.Edition == EditionEnum.Standard;
+        bool isAddon7Active = formModel.Version == VersionEnum.Beta;
+        return isAddon1Active || isAddon2Active || isAddons3456Active || isAddon7Active;
     }
 
     private static readonly List<string> SHA256s = new List<string> {
@@ -224,6 +281,20 @@ public partial class MainWindow : Window
             if (!File.Exists(formModel.ClassicPath + "/d3xp/pak000.pk4"))
             {
                 await ShowErrorAndRollback("The Original DOOM 3 path doesn't have the ROE expansion installed");
+                return;
+            }
+        }
+
+        if (formModel.Addon6)
+        {
+            if (string.IsNullOrEmpty(formModel.ClassicPath)) {
+                await ShowErrorAndRollback("Please provide a path for the Original DOOM 3");
+                return;
+            }
+
+            if (!File.Exists(formModel.ClassicPath + "/d3xp/pak001.pk4") || !File.Exists(formModel.ClassicPath + "/base/pak007.pk4"))
+            {
+                await ShowErrorAndRollback("The Original DOOM 3 path doesn't have the ROE expansion with the latest updates installed");
                 return;
             }
         }
@@ -341,7 +412,7 @@ public partial class MainWindow : Window
             ProgressText.Header = "Downloading BFA extras";
             ProgressLoad.IsIndeterminate = false;
             ProgressLoad.ShowProgressText = true;
-            await DownloadFile("https://github.com/MadDeCoDeR/BFA-Assets/archive/refs/heads/extras.zip", "./bfa_extras.zip");
+            await DownloadFile("https://api.github.com/repos/MadDeCoDeR/BFA-Assets/zipball/extras", "./bfa_extras.zip");
             if (Directory.Exists("./bfa_extras"))
             {
                 Directory.Delete("./bfa_extras", true);
@@ -378,6 +449,20 @@ public partial class MainWindow : Window
                 File.Delete("./bfa_extras.zip");
             }
 
+        }
+
+        if (formModel.Addon6 && formModel.Edition == EditionEnum.Standard)
+        {
+            await InstallEFXFiles(formModel.ClassicPath, formModel.MainPath);
+            if (Directory.Exists("./ogD3Assets"))
+            {
+                Directory.Delete("./ogD3Assets", true);
+            }
+        }
+
+        if (formModel.Addon7 && formModel.Version == VersionEnum.Beta)
+        {
+            await InstallLauncher(formModel.MainPath);
         }
 
         this.HandleState();
@@ -480,7 +565,8 @@ Addons logic
             Directory.CreateDirectory(destination + "/base/def");
         }
         Utilities.SafeCopy("./ogD3Assets/def/monster_zombie_hazmat.def", destination + "/base/def");
-        Utilities.SafeCopy("./bfa_extras/BFA-Assets-extras/zExtra_erebus5.resources", destination + "/base/maps");
+        string expectedFile = Utilities.FindFileInFolder("./bfa_extras", "zExtra_erebus5");
+        Utilities.SafeCopy(expectedFile, destination + "/base/maps");
     }
 
     private async Task InstallROEArcades(string source, string destination)
@@ -505,7 +591,8 @@ Addons logic
         await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "textures/particles/flame2_strip");
         await Utilities.SelectiveExtraction(source + "/d3xp/pak000.pk4", "./ogD3Assets", "ui/assets/crosshair");
         await Utilities.CopyDirectoryContents("./ogD3Assets", destination + "/base");
-        Utilities.SafeCopy("./bfa_extras/BFA-Assets-extras/zExtra_ROE_arcades.resources", destination + "/base/maps");
+        string expectedFile = Utilities.FindFileInFolder("./bfa_extras", "zExtra_ROE_arcades");
+        Utilities.SafeCopy(expectedFile, destination + "/base/maps");
     }
 
     private async Task InstallLEArcade(string destination)
@@ -513,8 +600,87 @@ Addons logic
         ProgressText.Header = "Installing ROE Arcade";
         ProgressLoad.IsIndeterminate = true;
         ProgressLoad.ShowProgressText = false;
+        string expectedFile = Utilities.FindFileInFolder("./bfa_extras", "zExtra_le_arcade");
+        Utilities.SafeCopy(expectedFile, destination + "/base_BFG/maps");
+    }
 
-        Utilities.SafeCopy("./bfa_extras/BFA-Assets-extras/zExtra_le_arcade.resources", destination + "/base/maps");
+    private async Task InstallEFXFiles(string source, string destination)
+    {
+        ProgressText.Header = "Copying EFX files";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+
+        await Utilities.SelectiveExtraction(source + "/base/pak007.pk4", "./ogD3Assets", "efxs");
+        await Utilities.SelectiveExtraction(source + "/d3xp/pak001.pk4", "./ogD3Assets", "efxs");
+        await Utilities.CopyDirectoryContents("./ogD3Assets", destination + "/base");
+    }
+
+    private async Task InstallLauncher(string destination)
+    {
+        OperatingSystem os = Environment.OSVersion;
+        string osString = os.Platform == PlatformID.Win32NT ? "Windows" : "Linux";
+        //First get available releases of Open Platform
+        GitRelease? latestRelease = null;
+        int i = 1;
+        ProgressText.Header = "Checking Latest Release";
+        ProgressLoad.IsIndeterminate = true;
+        ProgressLoad.ShowProgressText = false;
+        HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/MadDeCoDeR/CRBDL/releases?page=" + i);
+        ICollection<GitRelease> releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
+        latestRelease = releases.OrderByDescending(rel => rel.PublishedAt).First();
+        i++;
+        if (latestRelease == null)
+        {
+            await ShowError("Failed to Find the latest release");
+            return;
+        }
+        GitReleaseAsset? asset = latestRelease?.Assets?.Where(ast => osString == "Linux" ? ast.Name.Contains(".AppImage") : true).FirstOrDefault();
+
+        if (asset == null)
+        {
+            await ShowError("Failed to find the right asset");
+            return;
+        }
+
+        ProgressText.Header = "Downloading Launcher";
+        ProgressLoad.IsIndeterminate = false;
+        ProgressLoad.ShowProgressText = true;
+        await DownloadFile(asset.DownloadUrl, osString == "Linux" ? "DBFAL-x86_64.AppImage": "./launcher.zip");
+
+        if (osString == "Windows") {
+            ProgressText.Header = "Extracting Launcher";
+            ProgressLoad.IsIndeterminate = true;
+            ProgressLoad.ShowProgressText = false;
+
+            if (Directory.Exists("./launcher"))
+            {
+                Directory.Delete("./launcher", true);
+            }
+            using(FileStream file = File.OpenRead("./launcher.zip"))
+            {
+                await ZipFile.ExtractToDirectoryAsync(file, "./launcher");
+            }
+
+        }
+
+        string source = osString == "Linux" ? "./DBFAL-x86_64.AppImage" : "./launcher/DBFAL-windows-x64";
+
+        if (!source.EndsWith(".AppImage")) {
+            await Utilities.CopyDirectoryContents(source, destination);
+            //cleanup
+            if (Directory.Exists("./launcher"))
+            {
+                Directory.Delete("./launcher", true);
+            }
+            if (File.Exists("./launcher.zip"))
+            {
+                File.Delete("./launcher.zip");
+            }
+        } else
+        {
+            File.Move(source, destination + "/DBFAL-x86_64.AppImage", true);
+        }
+
     }
 /**
 Bound to UI utilities
@@ -578,6 +744,8 @@ Bound to UI utilities
             using (HttpResponseMessage downloadResponse = await httpClient.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead)) {
 
                 long? contentLength = downloadResponse.Content.Headers.ContentLength;
+                ProgressLoad.IsIndeterminate = contentLength == null;
+                ProgressLoad.ShowProgressText = contentLength != null;
                 using (Stream downloadStream = await downloadResponse.Content.ReadAsStreamAsync())
                 {
                     int offset = 0;
@@ -587,7 +755,9 @@ Bound to UI utilities
                         if (tmpOffset > 0) {
                             await file.WriteAsync(buffer, 0, tmpOffset);
                             offset += tmpOffset;
-                            ProgressLoad.Value = ((double)((offset * 1.0) / contentLength) * 100);
+                            if (contentLength != null) {
+                                ProgressLoad.Value = ((double)((offset * 1.0) / contentLength) * 100);
+                            }
                             
                         } else
                         {

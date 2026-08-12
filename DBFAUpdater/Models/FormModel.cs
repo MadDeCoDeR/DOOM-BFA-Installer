@@ -46,6 +46,12 @@ public partial class FormModel : ObservableObject
     public bool _addon5;
 
     [ObservableProperty]
+    public bool _addon6;
+
+    [ObservableProperty]
+    public bool _addon7;
+
+    [ObservableProperty]
     public string? _mainPath;
 
     [ObservableProperty]

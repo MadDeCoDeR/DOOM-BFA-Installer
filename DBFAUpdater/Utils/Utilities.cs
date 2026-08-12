@@ -62,4 +62,20 @@ public static class Utilities
 
         return totalSize;
     }
+
+    public static string FindFileInFolder(string folder, string fileName)
+    {
+        string result = "";
+        
+        foreach(string file in Directory.GetFiles(folder, "*", SearchOption.AllDirectories))
+        {
+            if (file.Contains(fileName))
+            {
+                result = file;
+                break;
+            }
+        }
+
+        return result;
+    }
 }
