@@ -7,7 +7,7 @@
     <PublishSingleFile>true</PublishSingleFile>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
     <ApplicationIcon>Assets\dbfainstaller.ico</ApplicationIcon>
-    <Version>1.0.0</Version>
+    <Version>0.8.0</Version>
     <AssemblyTitle>DOOM BFA Updater</AssemblyTitle>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <PublishAot>False</PublishAot>

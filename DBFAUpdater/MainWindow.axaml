@@ -3,7 +3,7 @@
         xmlns:vm="using:DBFAUpdater"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="350"
+        mc:Ignorable="d"
         Width="600" Height="350" CanResize="False" CanMaximize="False"
         x:Class="DBFAUpdater.MainWindow"
         Title="DBFAUpdater"
