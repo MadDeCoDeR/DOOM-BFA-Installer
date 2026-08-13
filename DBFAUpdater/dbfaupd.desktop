@@ -2,5 +2,6 @@
 [Desktop Entry]
 Name=DOOM BFA Updater
 Exec=DBFAUpdater
+Icon=dbfainstaller
 Type=Application
 Categories=Game;

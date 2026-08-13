@@ -6,6 +6,7 @@
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <PublishSingleFile>true</PublishSingleFile>
     <RuntimeIdentifiers>win-x64;linux-x64</RuntimeIdentifiers>
+    <ApplicationIcon>Assets\dbfainstaller.ico</ApplicationIcon>
     <Version>1.0.0</Version>
     <AssemblyTitle>DOOM BFA Updater</AssemblyTitle>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -39,6 +40,8 @@
   <ItemGroup>
         <AvaloniaResource Include="Assets/**" />
   </ItemGroup>
-
+  <ItemGroup>
+    <Content Include="Assets\dbfainstaller.ico" />
+  </ItemGroup>
   
 </Project>
