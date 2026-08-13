@@ -16,7 +16,7 @@ using Newtonsoft.Json;
 using DBFAUpdater.Utils;
 using Avalonia.Platform.Storage;
 using System.Reflection;
-using System.Threading;
+using Avalonia.Platform;
 
 namespace DBFAUpdater;
 
@@ -27,21 +27,46 @@ public class StateMachine
     public string? Next { get; set; }
 
     public Func<FormModel, bool>? Condition { get; set; }
+
+    public Func<FormModel, int, bool>? LoopingCondition { get; set; }
+
+    public Action<MainWindow, FormModel, int>? LoopingAction { get; set; }
+
+    public int LoopingIndex = 0;
 }
 public partial class MainWindow : Window
 {
-    private readonly List<StateMachine> states = new List<StateMachine>
-    {
-        new StateMachine { Previous = null, Current = "Welcome", Next = "Version", Condition = null },
-        new StateMachine { Previous = "Welcome", Current = "Version", Next = "Profile", Condition = null },
-        new StateMachine { Previous = "Version", Current = "Profile", Next = "Edition", Condition = (context) => context.Version == VersionEnum.Beta },
-        new StateMachine { Previous = "Profile", Current = "Edition", Next = "Addon", Condition = null },
-        new StateMachine { Previous = "Edition", Current = "Addon", Next = "InstPath", Condition = (context) => CheckAvailableAddons(context) },
-        new StateMachine { Previous = "Addon", Current = "InstPath", Next = "Progress", Condition = null },
-        new StateMachine { Previous = "InstPath", Current = "Progress", Next = "End", Condition = null },
-        new StateMachine { Previous = null, Current = "End", Next = null, Condition = null },
+    private readonly List<StateMachine> states = [
+        new StateMachine { Previous = null, Current = "Welcome", Next = "Version", Condition = null, LoopingCondition = null, LoopingAction = null },
+        new StateMachine { Previous = "Welcome", Current = "Version", Next = "Profile", Condition = null, LoopingCondition = null },
+        new StateMachine { Previous = "Version", Current = "Profile", Next = "Edition", Condition = (context) => context.Version == VersionEnum.Beta, LoopingCondition = null, LoopingAction = null },
+        new StateMachine { Previous = "Profile", Current = "Edition", Next = "Addon", Condition = null, LoopingCondition = null, LoopingAction = null },
+        new StateMachine { Previous = "Edition", Current = "Addon", Next = "License", Condition = (context) => CheckAvailableAddons(context), LoopingCondition = null, LoopingAction = null },
+        new StateMachine { Previous = "Addon", Current = "License", Next = "InstPath", Condition = null, LoopingCondition = (context, index) => AllLicensesShawn(context, index), LoopingAction = (window, context, index) => ShowLicense(window, context, index) },
+        new StateMachine { Previous = "License", Current = "InstPath", Next = "Progress", Condition = null, LoopingCondition = null, LoopingAction = null },
+        new StateMachine { Previous = "InstPath", Current = "Progress", Next = "End", Condition = null, LoopingCondition = null, LoopingAction = null },
+        new StateMachine { Previous = null, Current = "End", Next = null, Condition = null, LoopingCondition = null, LoopingAction = null },
 
-    };
+    ];
+
+    private static readonly List<string> LicensePaths = [
+        "Assets/BFA/COPYING.txt",
+        "Assets/launcher/COPYING.txt",
+        "Assets/Open_Platform/COPYING.txt"
+    ];
+
+    private static readonly List<string> LicenseHeaders = [
+        "DOOM BFA License",
+        "DBFA Launcher License",
+        "Open Platform License"
+    ];
+
+    private static readonly List<string> SHA256s = [
+        "B683AC1B1D3F0CA6B92111DB85FC77ECE9D5C034CE5461EB8A7C4ADD8E239A22", //DOOM 3: BFG Edition
+        "6DAECF3E621756C8A77B3C3064ED5FB488AFE357A80B7C14BEF35B6811B073CE", //DOOM 3 re-release (2019)
+    ];
+
+    private static readonly SHA256 sHA256 = SHA256.Create();
 
     private readonly HttpClient httpClient;
     private StateMachine currentState;
@@ -57,10 +82,14 @@ public partial class MainWindow : Window
 
     private void Window_Loaded(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
-        ((FormModel)DataContext).PropertyChanged += OnEditionChanged;
-        ((FormModel)DataContext).PropertyChanged += OnProfileChanged;
-        ((FormModel)DataContext).PropertyChanged += OnAddonSelected;
-        ((FormModel)DataContext).PropertyChanged += OnVersionSelected;
+        if (DataContext != null) {
+#pragma warning disable CS8622 // Nullability of reference types in type of parameter doesn't match the target delegate (possibly because of nullability attributes).
+            ((FormModel)DataContext).PropertyChanged += OnEditionChanged;
+            ((FormModel)DataContext).PropertyChanged += OnProfileChanged;
+            ((FormModel)DataContext).PropertyChanged += OnAddonSelected;
+            ((FormModel)DataContext).PropertyChanged += OnVersionSelected;
+#pragma warning restore CS8622 // Nullability of reference types in type of parameter doesn't match the target delegate (possibly because of nullability attributes).
+        }
     }
 
     private async void Next_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
@@ -82,7 +111,8 @@ public partial class MainWindow : Window
         string? mountPoint = ((Button?)sender)?.Name?.Replace("Button", "");
         if (!string.IsNullOrEmpty(mountPoint) && folder != null && folder.Count > 0)
         {
-            FormModel formModel = ((FormModel)DataContext);
+
+            FormModel? formModel = (FormModel?)DataContext;
             PropertyInfo? mountProperty = formModel?.GetType().GetProperties().Where(prop => prop.Name.Contains(mountPoint)).FirstOrDefault();
             if (mountProperty != null)
             {
@@ -93,140 +123,174 @@ public partial class MainWindow : Window
 
     private async void HandleState(bool direction = true)
     {
-        FormModel dataForm = (FormModel)this.DataContext;
-        Control? currentFrame = null;
-        Control? upcomingFrame = null;
-        StateMachine? upcomingState = direction ? states.GetNextState(currentState) : states.GetPreviousState(currentState);
-        if (upcomingState == null)
-        {
-            this.Close();
-            return;
-        }
-
-        int found = 0;
-        foreach (var child in Main.Children)
-        {
-            if (child.Name == currentState.Current)
+        if (this.DataContext != null) {
+            FormModel dataForm = (FormModel)this.DataContext;
+            Control? currentFrame = null;
+            Control? upcomingFrame = null;
+            StateMachine? upcomingState = direction ? states.GetNextState(currentState) : states.GetPreviousState(currentState);
+            if (upcomingState == null)
             {
-                currentFrame = child;
-                found++;
+                this.Close();
+                return;
             }
 
-            if (child.Name == upcomingState.Current)
+            int found = 0;
+            foreach (var child in Main.Children)
             {
-                upcomingFrame = child;
-                found++;
+                if (child.Name == currentState.Current)
+                {
+                    currentFrame = child;
+                    found++;
+                }
+
+                if (child.Name == upcomingState.Current)
+                {
+                    upcomingFrame = child;
+                    found++;
+                }
+                if (found == 2)
+                {
+                    break;
+                }
             }
-            if (found == 2)
+            if (currentFrame == null || upcomingFrame == null)
             {
-                break;
+                return;
             }
-        }
+            if (currentState.LoopingCondition != null)
+            {
+                currentState.LoopingIndex += direction ? 1 : -1;
+            }
 
-        currentFrame.IsVisible = false;
-        currentFrame.IsEnabled = false;
-        if (upcomingState.Condition != null && !upcomingState.Condition(dataForm))
-        {
-            currentState = upcomingState;
-            HandleState(direction);
-            return;
-        }
-        upcomingFrame.IsVisible = true;
-        upcomingFrame.IsEnabled = true;
+            if (currentState.LoopingCondition == null || !currentState.LoopingCondition(dataForm, currentState.LoopingIndex) || currentState.LoopingIndex == -1) {
+                currentFrame.IsVisible = false;
+                currentFrame.IsEnabled = false;
+                if (upcomingState.Condition != null && !upcomingState.Condition(dataForm))
+                {
+                    currentState = upcomingState;
+                    HandleState(direction);
+                    return;
+                }
+                
+                upcomingFrame.IsVisible = true;
+                upcomingFrame.IsEnabled = true;
 
 
-        Back.IsVisible = upcomingState.Previous != null && (upcomingState.Current != "Progress");
-        Back.IsEnabled = upcomingState.Previous != null && (upcomingState.Current != "Progress");
-        Next.IsVisible = upcomingState.Current != "Progress";
-        Next.IsEnabled = upcomingState.Previous != "Progress";
-        Next.Content = upcomingState.Current == "End" ? "Close" : "Next";
+                Back.IsVisible = upcomingState.Previous != null && (upcomingState.Current != "Progress");
+                Back.IsEnabled = upcomingState.Previous != null && (upcomingState.Current != "Progress");
+                Next.IsVisible = upcomingState.Current != "Progress";
+                Next.IsEnabled = upcomingState.Previous != "Progress";
+                Next.Content = upcomingState.Current == "End" ? "Close" : "Next";
 
-        if (currentState.Current == "Addon" && !direction)
-        {
-            ResetAddons();
-        }
+                if (currentState.Current == "Addon" && !direction)
+                {
+                    ResetAddons();
+                }
+                currentState.LoopingIndex = !direction ? 0 : currentState.LoopingIndex - 1;
+                currentState = upcomingState;
 
-        currentState = upcomingState;
+                if (currentState.Current == "Progress")
+                {
+                    await InstallMod();
+                }
 
-        if (currentState.Current == "Progress")
-        {
-            await InstallMod();
+            }
+
+            if (currentState.LoopingCondition != null )
+            {
+                if(currentState.LoopingCondition(dataForm, currentState.LoopingIndex) && currentState.LoopingAction != null)
+                {
+                    currentState.LoopingAction(this, dataForm, currentState.LoopingIndex);
+                    
+                }
+                
+            }
         }
 
     }
 
     private void OnEditionChanged(object sender, PropertyChangedEventArgs e)
     {
-        FormModel dataModel = ((FormModel)this.DataContext);
-        if (e.PropertyName == "Edition")
-        {
-            Addon2.IsEnabled = dataModel.Edition == EditionEnum.Classic;
-            Addon2.IsVisible = dataModel.Edition == EditionEnum.Classic;
-            Addon3.IsVisible = dataModel.Edition == EditionEnum.Standard;
-            Addon3.IsEnabled = dataModel.Edition == EditionEnum.Standard;
-            Addon4.IsVisible = dataModel.Edition == EditionEnum.Standard;
-            Addon4.IsEnabled = dataModel.Edition == EditionEnum.Standard;
-            Addon5.IsVisible = dataModel.Edition == EditionEnum.Standard;
-            Addon5.IsEnabled = dataModel.Edition == EditionEnum.Standard;
-            Addon6.IsVisible = dataModel.Edition == EditionEnum.Standard;
-            Addon6.IsEnabled = dataModel.Edition == EditionEnum.Standard;
-            ClassicPathTitle.IsEnabled = dataModel.Edition == EditionEnum.Classic;
-            ClassicPathTitle.IsVisible = dataModel.Edition == EditionEnum.Classic;
-            ClassicPathTitle.Header = dataModel.Edition == EditionEnum.Classic ? "Select DOOM 1 + 2 installation Path" : ClassicPathTitle.Header;
-            ClassicPath.IsEnabled = dataModel.Edition == EditionEnum.Classic;
-            ClassicPath.IsVisible = dataModel.Edition == EditionEnum.Classic;
+        if (this.DataContext != null) {
+            FormModel dataModel = (FormModel)this.DataContext;
+            if (e.PropertyName == "Edition")
+            {
+                Addon2.IsEnabled = dataModel.Edition == EditionEnum.Classic;
+                Addon2.IsVisible = dataModel.Edition == EditionEnum.Classic;
+                Addon3.IsVisible = dataModel.Edition == EditionEnum.Standard;
+                Addon3.IsEnabled = dataModel.Edition == EditionEnum.Standard;
+                Addon4.IsVisible = dataModel.Edition == EditionEnum.Standard;
+                Addon4.IsEnabled = dataModel.Edition == EditionEnum.Standard;
+                Addon5.IsVisible = dataModel.Edition == EditionEnum.Standard;
+                Addon5.IsEnabled = dataModel.Edition == EditionEnum.Standard;
+                Addon6.IsVisible = dataModel.Edition == EditionEnum.Standard;
+                Addon6.IsEnabled = dataModel.Edition == EditionEnum.Standard;
+                ClassicPathTitle.IsEnabled = dataModel.Edition == EditionEnum.Classic;
+                ClassicPathTitle.IsVisible = dataModel.Edition == EditionEnum.Classic;
+                ClassicPathTitle.Header = dataModel.Edition == EditionEnum.Classic ? "Select DOOM 1 + 2 installation Path" : ClassicPathTitle.Header;
+                ClassicPath.IsEnabled = dataModel.Edition == EditionEnum.Classic;
+                ClassicPath.IsVisible = dataModel.Edition == EditionEnum.Classic;
+            }
 
         }
     }
 
     private void OnProfileChanged(object sender, PropertyChangedEventArgs e)
     {
-        FormModel dataModel = ((FormModel)this.DataContext);
-        if (e.PropertyName == "Profile")
-        {
-            Addon1.IsEnabled = dataModel.Profile == ProfileEnum.Retail || dataModel.Version == VersionEnum.Stable;
-            Addon1.IsVisible = dataModel.Profile == ProfileEnum.Retail || dataModel.Version == VersionEnum.Stable;
+        if (this.DataContext != null) {
+            FormModel dataModel = ((FormModel)this.DataContext);
+            if (e.PropertyName == "Profile")
+            {
+                Addon1.IsEnabled = dataModel.Profile == ProfileEnum.Retail || dataModel.Version == VersionEnum.Stable;
+                Addon1.IsVisible = dataModel.Profile == ProfileEnum.Retail || dataModel.Version == VersionEnum.Stable;
 
+            }
         }
     }
 
     private void OnAddonSelected(object sender, PropertyChangedEventArgs e)
     {
-        FormModel dataModel = ((FormModel)this.DataContext);
-        if (e.PropertyName == "Addon3" || e.PropertyName == "Addon4" || e.PropertyName == "Addon6")
-        {
-            bool isTheAddonSelected = dataModel.Addon3 || dataModel.Addon4 || dataModel.Addon6;
-            ClassicPathTitle.IsEnabled = isTheAddonSelected;
-            ClassicPathTitle.IsVisible = isTheAddonSelected;
-            ClassicPathTitle.Header = isTheAddonSelected ? "Select Original DOOM 3 installation Path" : "Select DOOM 1 + 2 installation Path";
-            ClassicPath.IsEnabled = isTheAddonSelected;
-            ClassicPath.IsVisible = isTheAddonSelected;
+        if (this.DataContext != null) {
+            FormModel dataModel = ((FormModel)this.DataContext);
+            if (e.PropertyName == "Addon3" || e.PropertyName == "Addon4" || e.PropertyName == "Addon6")
+            {
+                bool isTheAddonSelected = dataModel.Addon3 || dataModel.Addon4 || dataModel.Addon6;
+                ClassicPathTitle.IsEnabled = isTheAddonSelected;
+                ClassicPathTitle.IsVisible = isTheAddonSelected;
+                ClassicPathTitle.Header = isTheAddonSelected ? "Select Original DOOM 3 installation Path" : "Select DOOM 1 + 2 installation Path";
+                ClassicPath.IsEnabled = isTheAddonSelected;
+                ClassicPath.IsVisible = isTheAddonSelected;
 
 
+            }
         }
     }
 
     private void OnVersionSelected(object sender, PropertyChangedEventArgs e)
     {
-        FormModel dataModel = ((FormModel)this.DataContext);
-        if (e.PropertyName == "Version")
-        {
-            Addon7.IsEnabled = dataModel.Version == VersionEnum.Beta;
-            Addon7.IsVisible = dataModel.Version == VersionEnum.Beta;
+        if (this.DataContext != null) {
+            FormModel dataModel = ((FormModel)this.DataContext);
+            if (e.PropertyName == "Version")
+            {
+                Addon7.IsEnabled = dataModel.Version == VersionEnum.Beta;
+                Addon7.IsVisible = dataModel.Version == VersionEnum.Beta;
 
+            }
         }
     }
 
     private void ResetAddons()
     {
-        FormModel dataModel = ((FormModel)this.DataContext);
-        dataModel.Addon1 = false;
-        dataModel.Addon2 = false;
-        dataModel.Addon3 = false;
-        dataModel.Addon4 = false;
-        dataModel.Addon5 = false;
-        dataModel.Addon6 = false;
-        dataModel.Addon7 = false;
+        if (this.DataContext != null) {
+            FormModel dataModel = ((FormModel)this.DataContext);
+            dataModel.Addon1 = false;
+            dataModel.Addon2 = false;
+            dataModel.Addon3 = false;
+            dataModel.Addon4 = false;
+            dataModel.Addon5 = false;
+            dataModel.Addon6 = false;
+            dataModel.Addon7 = false;
+        }
     }
 
     private static bool CheckAvailableAddons(FormModel formModel)
@@ -238,234 +302,255 @@ public partial class MainWindow : Window
         return isAddon1Active || isAddon2Active || isAddons3456Active || isAddon7Active;
     }
 
-    private static readonly List<string> SHA256s = new List<string> {
-            "B683AC1B1D3F0CA6B92111DB85FC77ECE9D5C034CE5461EB8A7C4ADD8E239A22", //DOOM 3: BFG Edition
-            "6DAECF3E621756C8A77B3C3064ED5FB488AFE357A80B7C14BEF35B6811B073CE", //DOOM 3 re-release (2019)
-        };
+    private static bool AllLicensesShawn(FormModel formModel, int index)
+    {
+        int maxLicenses = 1;
+        maxLicenses += formModel.Version == VersionEnum.Stable ? 1 : 0;
+        maxLicenses += formModel.Version == VersionEnum.Beta && formModel.Addon7 ? 1 : 0;
+        maxLicenses += formModel.Addon1 ? 1 : 0;
 
-    private static readonly SHA256 sHA256 = SHA256.Create();
+        return index < maxLicenses;
+    }
+
+    private static void ShowLicense(MainWindow mainWindow, FormModel formModel, int index)
+    {
+        int maxLicenses = 1;
+        maxLicenses += formModel.Version == VersionEnum.Stable ? 1 : 0;
+        maxLicenses += formModel.Version == VersionEnum.Beta && formModel.Addon7 ? 1 : 0;
+        maxLicenses += formModel.Addon1 ? 1 : 0;
+        if (index < maxLicenses)
+        {
+            string licensePath = LicensePaths[index];
+            mainWindow.LicenseHeader.Text = LicenseHeaders[index];
+            using (StreamReader licenseReader = new StreamReader(AssetLoader.Open(new Uri("avares://DBFAUpdater/" + licensePath)))) {
+                mainWindow.LicenseText.Text = licenseReader.ReadToEnd();
+            }
+        }
+    }
 
     private async Task InstallMod()
     {
-        FormModel formModel = ((FormModel)DataContext);
-        if (string.IsNullOrEmpty(formModel.MainPath))
-        {
-            await ShowErrorAndRollback("Please provide an installation Path");
-            return;
-        }
-        if (formModel.Edition == EditionEnum.Classic && !File.Exists(formModel.ClassicPath + "/doom.wad"))
-        {
-            await ShowErrorAndRollback("Please provide a proper installation path of DOOM 1 + 2");
-            return;
-        }
-
-        if (formModel.Edition == EditionEnum.Classic && File.Exists(formModel.MainPath + "/base/_common.resources"))
-        {
-            string filePath = formModel.MainPath + "/base/_common.resources";
-            byte[] data = File.ReadAllBytes(filePath);
-            string fileSha256 = BitConverter.ToString(sHA256.ComputeHash(data)).ToUpper().Replace("-", "");
-            if (fileSha256 == SHA256s[0] || fileSha256 == SHA256s[1])
+        if (this.DataContext != null) {
+            FormModel formModel = ((FormModel)DataContext);
+            if (string.IsNullOrEmpty(formModel.MainPath))
             {
-                await ShowErrorAndRollback("You can't install Classic Edition on DOOM 3 BFG Edition\nPlease Select another path");
+                await ShowErrorAndRollback("Please provide an installation Path");
                 return;
             }
-        }
-
-        if (formModel.Addon3 || formModel.Addon4)
-        {
-            if (string.IsNullOrEmpty(formModel.ClassicPath)) {
-                await ShowErrorAndRollback("Please provide a path for the Original DOOM 3");
-                return;
-            }
-
-            if (!File.Exists(formModel.ClassicPath + "/d3xp/pak000.pk4"))
+            if (formModel.Edition == EditionEnum.Classic && !File.Exists(formModel.ClassicPath + "/doom.wad"))
             {
-                await ShowErrorAndRollback("The Original DOOM 3 path doesn't have the ROE expansion installed");
-                return;
-            }
-        }
-
-        if (formModel.Addon6)
-        {
-            if (string.IsNullOrEmpty(formModel.ClassicPath)) {
-                await ShowErrorAndRollback("Please provide a path for the Original DOOM 3");
+                await ShowErrorAndRollback("Please provide a proper installation path of DOOM 1 + 2");
                 return;
             }
 
-            if (!File.Exists(formModel.ClassicPath + "/d3xp/pak001.pk4") || !File.Exists(formModel.ClassicPath + "/base/pak007.pk4"))
+            if (formModel.Edition == EditionEnum.Classic && File.Exists(formModel.MainPath + "/base/_common.resources"))
             {
-                await ShowErrorAndRollback("The Original DOOM 3 path doesn't have the ROE expansion with the latest updates installed");
-                return;
-            }
-        }
-        OperatingSystem os = Environment.OSVersion;
-        string osString = os.Platform == PlatformID.Win32NT ? "Windows" : "Linux";
-        //First get available releases of DOOM BFA
-        GitRelease? latestRelease = null;
-        int i = 1;
-        ProgressText.Header = "Checking Latest Release";
-        ProgressLoad.IsIndeterminate = true;
-        while(latestRelease == null) {
-            HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/MadDeCoDeR/Classic-RBDOOM-3-BFG/releases?page=" + i);
-            ICollection<GitRelease> releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
-            latestRelease = releases.Where(rel => rel.Prerelease == (formModel.Version == VersionEnum.Beta)).OrderByDescending(rel => rel.PublishedAt).First();
-            i++;
-        }
-        if (latestRelease == null)
-        {
-            await ShowError("Failed to Find the latest release");
-            return;
-        }
-        GitReleaseAsset? asset = null;
-        switch(formModel.Version)
-        {
-            case VersionEnum.Stable:
+                string filePath = formModel.MainPath + "/base/_common.resources";
+                byte[] data = File.ReadAllBytes(filePath);
+                string fileSha256 = BitConverter.ToString(sHA256.ComputeHash(data)).ToUpper().Replace("-", "");
+                if (fileSha256 == SHA256s[0] || fileSha256 == SHA256s[1])
                 {
-                    asset = latestRelease?.Assets?.Where(ast => ast.Name.Contains(formModel.Edition.ToString())).FirstOrDefault();
-                    break;
-                }
-            case VersionEnum.Beta:
-                {
-                    string debug = formModel.Profile.ToString().ToLower();
-                    bool edition = formModel.Edition == EditionEnum.Classic;
-                    asset = latestRelease?.Assets?.Where(ast => ast.Name.Contains(osString.ToLower()) && ast.Name.Contains(debug) && ast.Name.Contains("classic") == edition && !ast.Name.Contains("x86")).FirstOrDefault();
-                    break;
-                }
-        }
-
-        if (asset == null)
-        {
-            await ShowError("Failed to find the right asset");
-            return;
-        }
-
-        ProgressText.Header = "Downloading DOOM BFA";
-        ProgressLoad.IsIndeterminate = false;
-        ProgressLoad.ShowProgressText = true;
-        await DownloadFile(asset.DownloadUrl, "./doom_bfa.zip");
-
-        ProgressText.Header = "Extracting DOOM BFA";
-        ProgressLoad.IsIndeterminate = true;
-        ProgressLoad.ShowProgressText = false;
-
-        if (Directory.Exists("./doom_bfa"))
-        {
-            Directory.Delete("./doom_bfa", true);
-        }
-        using(FileStream file = File.OpenRead("./doom_bfa.zip"))
-        {
-            await ZipFile.ExtractToDirectoryAsync(file, "./doom_bfa");
-        }
-        
-        string Destination = formModel.MainPath;
-
-        string source = "./doom_bfa";
-        if (formModel.Version == VersionEnum.Stable)
-        {
-            source += "/" + osString + "-x64";
-        }
-
-        await Utilities.CopyDirectoryContents(source, Destination);
-        if (formModel.Version == VersionEnum.Beta && formModel.Profile == ProfileEnum.Retail && !File.Exists(Destination + "/steam_appid.txt"))
-        {
-            using (StreamWriter outputFile = new StreamWriter(Destination + "/steam_appid.txt"))
-            {
-                if (formModel.Edition == EditionEnum.Standard)
-                {
-                    await outputFile.WriteLineAsync("208200");
-                } else
-                {
-                    await outputFile.WriteLineAsync("2280");
+                    await ShowErrorAndRollback("You can't install Classic Edition on DOOM 3 BFG Edition\nPlease Select another path");
+                    return;
                 }
             }
-        }
-        //cleanup
-        if (Directory.Exists("./doom_bfa"))
-        {
-            Directory.Delete("./doom_bfa", true);
-        }
-        if (File.Exists("./doom_bfa.zip"))
-        {
-            File.Delete("./doom_bfa.zip");
-        }
 
-        if (formModel.Edition == EditionEnum.Classic) {
-            ProgressText.Header = "Copying wad files";
+            if (formModel.Addon3 || formModel.Addon4)
+            {
+                if (string.IsNullOrEmpty(formModel.ClassicPath)) {
+                    await ShowErrorAndRollback("Please provide a path for the Original DOOM 3");
+                    return;
+                }
+
+                if (!File.Exists(formModel.ClassicPath + "/d3xp/pak000.pk4"))
+                {
+                    await ShowErrorAndRollback("The Original DOOM 3 path doesn't have the ROE expansion installed");
+                    return;
+                }
+            }
+
+            if (formModel.Addon6)
+            {
+                if (string.IsNullOrEmpty(formModel.ClassicPath)) {
+                    await ShowErrorAndRollback("Please provide a path for the Original DOOM 3");
+                    return;
+                }
+
+                if (!File.Exists(formModel.ClassicPath + "/d3xp/pak001.pk4") || !File.Exists(formModel.ClassicPath + "/base/pak007.pk4"))
+                {
+                    await ShowErrorAndRollback("The Original DOOM 3 path doesn't have the ROE expansion with the latest updates installed");
+                    return;
+                }
+            }
+            OperatingSystem os = Environment.OSVersion;
+            string osString = os.Platform == PlatformID.Win32NT ? "Windows" : "Linux";
+            //First get available releases of DOOM BFA
+            GitRelease? latestRelease = null;
+            int i = 1;
+            ProgressText.Header = "Checking Latest Release";
+            ProgressLoad.IsIndeterminate = true;
+            while(latestRelease == null) {
+                HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/MadDeCoDeR/Classic-RBDOOM-3-BFG/releases?page=" + i);
+                ICollection<GitRelease>? releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
+                latestRelease = releases?.Where(rel => rel.Prerelease == (formModel.Version == VersionEnum.Beta)).OrderByDescending(rel => rel.PublishedAt).First();
+                i++;
+            }
+            if (latestRelease == null)
+            {
+                await ShowError("Failed to Find the latest release");
+                return;
+            }
+            GitReleaseAsset? asset = null;
+            switch(formModel.Version)
+            {
+                case VersionEnum.Stable:
+                    {
+                        asset = latestRelease?.Assets?.Where(ast => ast.Name != null && ast.Name.Contains(formModel.Edition.ToString())).FirstOrDefault();
+                        break;
+                    }
+                case VersionEnum.Beta:
+                    {
+                        string debug = formModel.Profile.ToString().ToLower();
+                        bool edition = formModel.Edition == EditionEnum.Classic;
+                        asset = latestRelease?.Assets?.Where(ast => ast.Name != null &&  ast.Name.Contains(osString.ToLower()) && ast.Name.Contains(debug) && ast.Name.Contains("classic") == edition && !ast.Name.Contains("x86")).FirstOrDefault();
+                        break;
+                    }
+            }
+
+            if (asset == null)
+            {
+                await ShowError("Failed to find the right asset");
+                return;
+            }
+
+            ProgressText.Header = "Downloading DOOM BFA";
             ProgressLoad.IsIndeterminate = false;
             ProgressLoad.ShowProgressText = true;
-            await CopyWadFiles(formModel.ClassicPath, formModel.MainPath);
+            await DownloadFile(asset.DownloadUrl ?? "", "./doom_bfa.zip");
 
+            ProgressText.Header = "Extracting DOOM BFA";
+            ProgressLoad.IsIndeterminate = true;
+            ProgressLoad.ShowProgressText = false;
+
+            if (Directory.Exists("./doom_bfa"))
+            {
+                Directory.Delete("./doom_bfa", true);
+            }
+            using(FileStream file = File.OpenRead("./doom_bfa.zip"))
+            {
+                await ZipFile.ExtractToDirectoryAsync(file, "./doom_bfa");
+            }
+            
+            string Destination = formModel.MainPath;
+
+            string source = "./doom_bfa";
+            if (formModel.Version == VersionEnum.Stable)
+            {
+                source += "/" + osString + "-x64";
+            }
+
+            await Utilities.CopyDirectoryContents(source, Destination);
+            if (formModel.Version == VersionEnum.Beta && formModel.Profile == ProfileEnum.Retail && !File.Exists(Destination + "/steam_appid.txt"))
+            {
+                using (StreamWriter outputFile = new StreamWriter(Destination + "/steam_appid.txt"))
+                {
+                    if (formModel.Edition == EditionEnum.Standard)
+                    {
+                        await outputFile.WriteLineAsync("208200");
+                    } else
+                    {
+                        await outputFile.WriteLineAsync("2280");
+                    }
+                }
+            }
+            //cleanup
+            if (Directory.Exists("./doom_bfa"))
+            {
+                Directory.Delete("./doom_bfa", true);
+            }
+            if (File.Exists("./doom_bfa.zip"))
+            {
+                File.Delete("./doom_bfa.zip");
+            }
+
+            if (formModel.Edition == EditionEnum.Classic) {
+                ProgressText.Header = "Copying wad files";
+                ProgressLoad.IsIndeterminate = false;
+                ProgressLoad.ShowProgressText = true;
+                await CopyWadFiles(formModel.ClassicPath ?? ".", formModel.MainPath);
+
+            }
+
+            if (formModel.Addon1 && (formModel.Profile == ProfileEnum.Retail || formModel.Version == VersionEnum.Stable))
+            {
+                await InstallOpenPlatform(formModel.MainPath);
+            }
+
+            if (formModel.Addon2 && formModel.Edition == EditionEnum.Classic)
+            {
+                await ExtractKEXGUS(formModel.ClassicPath ?? ".", formModel.MainPath);
+            }
+
+            if ((formModel.Addon3 || formModel.Addon4 || formModel.Addon5) && formModel.Edition == EditionEnum.Standard)
+            {
+                ProgressText.Header = "Downloading BFA extras";
+                ProgressLoad.IsIndeterminate = false;
+                ProgressLoad.ShowProgressText = true;
+                await DownloadFile("https://api.github.com/repos/MadDeCoDeR/BFA-Assets/zipball/extras", "./bfa_extras.zip");
+                if (Directory.Exists("./bfa_extras"))
+                {
+                    Directory.Delete("./bfa_extras", true);
+                }
+                using(FileStream file = File.OpenRead("./bfa_extras.zip"))
+                {
+                    await ZipFile.ExtractToDirectoryAsync(file, "./bfa_extras");
+                }
+                if (formModel.Addon3) {
+                    await InstallErebus5Restored(formModel.ClassicPath ?? ".", formModel.MainPath);
+                }
+                if (formModel.Addon4)
+                {
+                    await InstallROEArcades(formModel.ClassicPath ?? ".", formModel.MainPath);
+                }
+
+                if (formModel.Addon5)
+                {
+                    await InstallLEArcade(formModel.MainPath);
+                }
+
+                if (Directory.Exists("./bfa_extras"))
+                {
+                    Directory.Delete("./bfa_extras", true);
+                }
+
+                if (Directory.Exists("./ogD3Assets"))
+                {
+                    Directory.Delete("./ogD3Assets", true);
+                }
+
+                if (File.Exists("./bfa_extras.zip"))
+                {
+                    File.Delete("./bfa_extras.zip");
+                }
+
+            }
+
+            if (formModel.Addon6 && formModel.Edition == EditionEnum.Standard)
+            {
+                await InstallEFXFiles(formModel.ClassicPath ?? ".", formModel.MainPath);
+                if (Directory.Exists("./ogD3Assets"))
+                {
+                    Directory.Delete("./ogD3Assets", true);
+                }
+            }
+
+            if (formModel.Addon7 && formModel.Version == VersionEnum.Beta)
+            {
+                await InstallLauncher(formModel.MainPath);
+            }
+
+            this.HandleState();
         }
-
-        if (formModel.Addon1 && (formModel.Profile == ProfileEnum.Retail || formModel.Version == VersionEnum.Stable))
-        {
-            await InstallOpenPlatform(formModel.MainPath);
-        }
-
-        if (formModel.Addon2 && formModel.Edition == EditionEnum.Classic)
-        {
-            await ExtractKEXGUS(formModel.ClassicPath, formModel.MainPath);
-        }
-
-        if ((formModel.Addon3 || formModel.Addon4 || formModel.Addon5) && formModel.Edition == EditionEnum.Standard)
-        {
-            ProgressText.Header = "Downloading BFA extras";
-            ProgressLoad.IsIndeterminate = false;
-            ProgressLoad.ShowProgressText = true;
-            await DownloadFile("https://api.github.com/repos/MadDeCoDeR/BFA-Assets/zipball/extras", "./bfa_extras.zip");
-            if (Directory.Exists("./bfa_extras"))
-            {
-                Directory.Delete("./bfa_extras", true);
-            }
-            using(FileStream file = File.OpenRead("./bfa_extras.zip"))
-            {
-                await ZipFile.ExtractToDirectoryAsync(file, "./bfa_extras");
-            }
-            if (formModel.Addon3) {
-                await InstallErebus5Restored(formModel.ClassicPath, formModel.MainPath);
-            }
-            if (formModel.Addon4)
-            {
-                await InstallROEArcades(formModel.ClassicPath, formModel.MainPath);
-            }
-
-            if (formModel.Addon5)
-            {
-                await InstallLEArcade(formModel.MainPath);
-            }
-
-            if (Directory.Exists("./bfa_extras"))
-            {
-                Directory.Delete("./bfa_extras", true);
-            }
-
-            if (Directory.Exists("./ogD3Assets"))
-            {
-                Directory.Delete("./ogD3Assets", true);
-            }
-
-            if (File.Exists("./bfa_extras.zip"))
-            {
-                File.Delete("./bfa_extras.zip");
-            }
-
-        }
-
-        if (formModel.Addon6 && formModel.Edition == EditionEnum.Standard)
-        {
-            await InstallEFXFiles(formModel.ClassicPath, formModel.MainPath);
-            if (Directory.Exists("./ogD3Assets"))
-            {
-                Directory.Delete("./ogD3Assets", true);
-            }
-        }
-
-        if (formModel.Addon7 && formModel.Version == VersionEnum.Beta)
-        {
-            await InstallLauncher(formModel.MainPath);
-        }
-
-        this.HandleState();
     }
 
 /**
@@ -482,15 +567,15 @@ Addons logic
         ProgressLoad.IsIndeterminate = true;
         ProgressLoad.ShowProgressText = false;
         HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/MadDeCoDeR/Open_Platform/releases?page=" + i);
-        ICollection<GitRelease> releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
-        latestRelease = releases.OrderByDescending(rel => rel.PublishedAt).First();
+        ICollection<GitRelease>? releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
+        latestRelease = releases?.OrderByDescending(rel => rel.PublishedAt).First();
         i++;
         if (latestRelease == null)
         {
             await ShowError("Failed to Find the latest release");
             return;
         }
-        GitReleaseAsset? asset = latestRelease?.Assets?.Where(ast => ast.Name.Contains("Steam")).FirstOrDefault();;
+        GitReleaseAsset? asset = latestRelease?.Assets?.Where(ast => ast.Name != null && ast.Name.Contains("Steam")).FirstOrDefault();;
 
         if (asset == null)
         {
@@ -501,7 +586,7 @@ Addons logic
         ProgressText.Header = "Downloading Open Platform";
         ProgressLoad.IsIndeterminate = false;
         ProgressLoad.ShowProgressText = true;
-        await DownloadFile(asset.DownloadUrl, "./open_platform.zip");
+        await DownloadFile(asset.DownloadUrl ?? "", "./open_platform.zip");
 
         ProgressText.Header = "Extracting Open Platform";
         ProgressLoad.IsIndeterminate = true;
@@ -626,15 +711,15 @@ Addons logic
         ProgressLoad.IsIndeterminate = true;
         ProgressLoad.ShowProgressText = false;
         HttpResponseMessage response = await httpClient.GetAsync("https://api.github.com/repos/MadDeCoDeR/CRBDL/releases?page=" + i);
-        ICollection<GitRelease> releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
-        latestRelease = releases.OrderByDescending(rel => rel.PublishedAt).First();
+        ICollection<GitRelease>? releases = JsonConvert.DeserializeObject<ICollection<GitRelease>>(await response.Content.ReadAsStringAsync());
+        latestRelease = releases?.OrderByDescending(rel => rel.PublishedAt).First();
         i++;
         if (latestRelease == null)
         {
             await ShowError("Failed to Find the latest release");
             return;
         }
-        GitReleaseAsset? asset = latestRelease?.Assets?.Where(ast => osString == "Linux" ? ast.Name.Contains(".AppImage") : true).FirstOrDefault();
+        GitReleaseAsset? asset = latestRelease?.Assets?.Where(ast => osString == "Linux" ? ast.Name != null && ast.Name.Contains(".AppImage") : true).FirstOrDefault();
 
         if (asset == null)
         {
@@ -645,7 +730,7 @@ Addons logic
         ProgressText.Header = "Downloading Launcher";
         ProgressLoad.IsIndeterminate = false;
         ProgressLoad.ShowProgressText = true;
-        await DownloadFile(asset.DownloadUrl, osString == "Linux" ? "DBFAL-x86_64.AppImage": "./launcher.zip");
+        await DownloadFile(asset.DownloadUrl ?? "", osString == "Linux" ? "DBFAL-x86_64.AppImage": "./launcher.zip");
 
         if (osString == "Windows") {
             ProgressText.Header = "Extracting Launcher";
@@ -740,6 +825,12 @@ Bound to UI utilities
         {
             File.Delete(Path);
         }
+
+        if (Url == "")
+        {
+            await ShowError("The download Url is empty");
+            return;
+        }
         using (FileStream file = File.OpenWrite(Path)) {
             using (HttpResponseMessage downloadResponse = await httpClient.GetAsync(Url, HttpCompletionOption.ResponseHeadersRead)) {
 
@@ -772,9 +863,9 @@ Bound to UI utilities
     private async Task CopyWadFiles(string source, string destination)
     {
         string masterSource = "";
-        if (Directory.Exists(Directory.GetParent(source).ToString() + "/base/master/wads"))
+        if (Directory.Exists(Directory.GetParent(source)?.ToString() + "/base/master/wads"))
         {
-            masterSource = Directory.GetParent(source).ToString() + "/base/master/wads";
+            masterSource = Directory.GetParent(source)?.ToString() + "/base/master/wads";
         } else if (Directory.Exists(source + "/dosdoom/base/master/wads"))
         {
             masterSource = source + "/dosdoom/base/master/wads";

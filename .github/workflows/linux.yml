@@ -1,0 +1,42 @@
+
+name: linux Build
+
+on:
+    workflow_call:
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest 
+
+    env:
+      Solution_Name: DBFAInstaller.sln                         # Replace with your solution name, i.e. MyWpfApp.sln.
+      Project_Directory: DBFAUpdater
+      
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    # Install the .NET Core workload
+    - name: Install .NET Core
+      uses: actions/setup-dotnet@v5
+      with:
+        dotnet-version: 10.0.x
+
+    - name: Build dotnet
+      run: |
+          ./DBFAUpdater/Setup-AppDir.sh
+          cd ./DBFAUpdater/bin
+          wget https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-x86_64.AppImage
+          chmod +x ./appimagetool-x86_64.AppImage
+          ARCH=x86_64 ./appimagetool-x86_64.AppImage ./AppDir/ ./DBFA_Updater-x86_64.AppImage
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v7
+      with:
+        name: DBFA_Updater-linux-x64
+        path: |
+          ${{ env.Project_Directory }}/bin/DBFA_Updater-x86_64.AppImage

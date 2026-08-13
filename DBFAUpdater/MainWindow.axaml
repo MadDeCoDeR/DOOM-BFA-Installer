@@ -88,6 +88,16 @@
                 </GroupBox>
                 </StackPanel>
             </DockPanel>
+            <DockPanel Name="License" IsVisible="False" IsEnabled="False">
+                <StackPanel DockPanel.Dock="Top" Height="10"></StackPanel>
+                <StackPanel DockPanel.Dock="Left" Width="10"></StackPanel>
+                <StackPanel Width="550">
+                    <TextBlock Name="LicenseHeader" Width="180" Height="30">DOOM BFA License</TextBlock>
+                    <ScrollViewer>
+                        <TextBox Name="LicenseText" TextWrapping="Wrap" Width="550" Height="200" Focusable="False" Cursor="Arrow" IsReadOnly="True"></TextBox>
+                    </ScrollViewer>
+                </StackPanel>
+            </DockPanel>
             <DockPanel Name="Progress" IsVisible="False" IsEnabled="False">
                 <StackPanel DockPanel.Dock="Top" Height="100"></StackPanel>
                 <StackPanel DockPanel.Dock="Left" Width="8"></StackPanel>

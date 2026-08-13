@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - 'master'
+  
+
+jobs:
+  linux-build:
+      uses: ./.github/workflows/linux.yml
+  windows-build:
+      uses: ./.github/workflows/windows.yml
+  make-release:
+    needs: [ linux-build, windows-build]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Get Project Version
+      id: get_ver
+      uses: bbonkr/get-version-action@v1
+      with:
+        project: './DBFAUpdater/DBFAUpdater.csproj'
+        show_log_message: true
+
+    - name: Get log messages
+      id: messages
+      working-directory: ${{ github.workspace }}
+      run: |
+        git fetch --prune --unshallow --tags 
+        COMMITS=$(git log --no-merges $(git describe --tags --abbrev=0)..HEAD --pretty=format:'- %s')
+        {
+          echo 'messages<<EOF'
+          echo "${COMMITS}"
+          echo EOF
+        } >> $GITHUB_OUTPUT
+    - name: Get current date
+      id: date
+      run: echo "date=$(date +'%Y-%m-%d-%H-%M-%s')" >> $GITHUB_OUTPUT
+    - uses: actions/download-artifact@v8
+    - name: Zip artifact files
+      shell: bash
+      run: |
+            zip -m -r DBFA_Updater-windows-x64 ./DBFA_Updater-windows-x64/*
+    - name: Make release
+      id: create_release
+      uses: softprops/action-gh-release@v3
+      with:
+        tag_name: ${{ steps.get_ver.outputs.version }}
+        name: DOOM BFA Updater Version ${{ steps.get_ver.outputs.version }} (BETA)
+        body: |
+          ${{ steps.messages.outputs.messages }}
+        draft: false
+        prerelease: true
+        files: |
+            ${{github.workspace}}/DBFA_Updater-linux-x64/*
+            ${{github.workspace}}/DBFA_Updater-windows-x64.zip
