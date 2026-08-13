@@ -601,7 +601,8 @@ Addons logic
             await ZipFile.ExtractToDirectoryAsync(file, "./open_platform");
         }
 
-        string source = "./open_platform" + "/" + osString.ToLower() + "64";
+        string opOSstring = osString.ToLower() != "linux" ? "Win" : "linux";
+        string source = "./open_platform" + "/" + opOSstring + "64";
 
         foreach (var file in Directory.GetFiles(source))
         {
