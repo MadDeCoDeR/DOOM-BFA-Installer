@@ -2,10 +2,18 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Avalonia: DBFAUpdater",
-            "type": "dotnet",
+            "name": ".NET Core Launch (console)",
+            "type": "coreclr",
             "request": "launch",
-            "projectPath": "${workspaceFolder}/DBFAUpdater/DBFAUpdater.csproj"
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/DBFAUpdater/bin/Debug/net10.0/DBFAUpdater.dll",
+            "console": "internalConsole",
+            "stopAtEntry": false
+        },
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach"
         }
     ]
 }
