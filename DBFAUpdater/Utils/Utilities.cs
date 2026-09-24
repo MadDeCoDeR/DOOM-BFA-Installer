@@ -78,4 +78,14 @@ public static class Utilities
 
         return result;
     }
+
+    public static string? RemoveLastSlash(this string? path)
+    {
+        if (path != null && (path.EndsWith("/") || path.EndsWith("\\")))
+        {
+            path = path.Substring(0, path.Length - 1);
+        }
+
+        return path;
+    }
 }

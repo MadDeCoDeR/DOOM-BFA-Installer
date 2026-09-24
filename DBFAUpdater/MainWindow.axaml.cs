@@ -477,7 +477,7 @@ public partial class MainWindow : Window
                 ProgressText.Header = "Copying wad files";
                 ProgressLoad.IsIndeterminate = false;
                 ProgressLoad.ShowProgressText = true;
-                await CopyWadFiles(formModel.ClassicPath ?? ".", formModel.MainPath);
+                await CopyWadFiles(formModel.ClassicPath.RemoveLastSlash() ?? ".", formModel.MainPath);
 
             }
 
